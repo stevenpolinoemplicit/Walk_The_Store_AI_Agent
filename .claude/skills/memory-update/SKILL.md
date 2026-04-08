@@ -1,6 +1,6 @@
 ---
 name: memory-update
-description: Use this skill at the end of a Claude Code session to log what was accomplished into memory.md. Triggers when the user says "we're done", "end of session", "wrap up", "save our progress", "update memory", "log what we did", "session complete", "I'm done for today", "let's close out", "write up the session", "record what we built", "before we go", "that's it for today", "update memory.md", "save context", "commit and close", or any indication the current work session is ending. Does not trigger mid-session when the user is still actively building.
+description: Use this skill at the end of a Claude Code session to log what was accomplished into memory.md. Triggers when the user says "we're done", "end of session", "wrap up", "save our progress", "update memory", "log what we did", "session complete", "I'm done for today", "let's close out", "write up the session", "record what we built", "before we go", "that's it for today", "update memory.md", "save context", "commit and close", "done for the day", "calling it", "signing off", "finished for today", "all done", "shutting down", "logging off", "that's a wrap", or any indication the current work session is ending. Does not trigger mid-session when the user is still actively building.
 allowed-tools: Read Edit Write
 metadata:
   model: claude-sonnet-4-6
