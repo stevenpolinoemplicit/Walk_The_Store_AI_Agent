@@ -348,5 +348,33 @@ claude --resume <session_id>
 - `jq` must be installed for the hook to work (`brew install jq` / `apt install jq`).
 
 ---
-*Last updated: 2026-04-06*
-*Last updated: [DATE] — update this when standards change.*
+
+## 14. Claude Code Skills — Slash Commands
+
+Every project must maintain a `claude_skills_list.md` file in the repo root. It is the single source of truth for all available slash commands in this project.
+
+### Where skills live
+- Custom skills: `.claude/commands/<skill-name>.md` — one file per skill
+- Built-in skills: available in every Claude Code session without a file (e.g. `/simplify`, `/claude-api`)
+- Invoke any skill by typing `/skill-name` in the Claude Code session
+
+### Claude's responsibilities
+- **When a new skill is added:** immediately add an entry to `claude_skills_list.md` with the slash command, file path, description, and when/why to use it
+- **When a skill is modified:** update its entry in `claude_skills_list.md` to reflect the change
+- **At session start:** skills in `.claude/commands/` are automatically available — no registration needed beyond creating the file
+
+### Skill file format
+Each `.claude/commands/<name>.md` file contains the prompt Claude executes when the skill is invoked. Write skills as clear, step-by-step instructions. Skills should be self-contained — they should not assume context from the current conversation.
+
+### Adding a new skill (checklist)
+1. Create `.claude/commands/your-skill-name.md` with the skill prompt
+2. Add an entry to `claude_skills_list.md` under the appropriate section
+3. Confirm the skill works by typing `/your-skill-name` in the session
+
+### Rules
+- Never delete a skill file — if a skill is no longer needed, mark it as deprecated in `claude_skills_list.md` with a note
+- `claude_skills_list.md` must always be committed — it is not machine-specific
+- Skill files in `.claude/commands/` must always be committed so all contributors have access
+
+---
+*Last updated: 2026-04-08*
