@@ -12,7 +12,11 @@
       "Bash(mv \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/commands/\"* \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/\")",
       "Bash(mv \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/claude_skills_list.md\" \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/\")",
       "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/commands\")",
-      "Bash(cp \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/\"*.md \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/commands/\")"
+      "Bash(cp \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/\"*.md \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/commands/\")",
+      "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/explain-file\")",
+      "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/new-session\")",
+      "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/memory-update\")",
+      "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/env-check\")"
     ]
   }
 }
