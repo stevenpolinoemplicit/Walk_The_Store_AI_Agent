@@ -13,6 +13,9 @@ pydantic
 # Gradio UI
 gradio
 
+# Hugging Face Hub
+huggingface_hub
+
 # HTTP client (Teamwork API)
 httpx
 

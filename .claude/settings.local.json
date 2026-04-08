@@ -6,7 +6,8 @@
       "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/hooks\")",
       "Bash(chmod +x \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/hooks/save_session.sh\")",
       "Bash(python -m venv .venv)",
-      "Bash(.venv/Scripts/pip install:*)"
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(\"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.venv/Scripts/pip\" show:*)"
     ]
   }
 }

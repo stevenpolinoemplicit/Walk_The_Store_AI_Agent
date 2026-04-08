@@ -9,6 +9,7 @@ dependencies = [
     "slack_sdk",
     "pydantic",
     "gradio",
+    "huggingface_hub",
     "httpx",
     "python-dotenv",
 ]
