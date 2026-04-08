@@ -1,0 +1,16 @@
+[project]
+name = "[PROJECT_NAME]"
+version = "0.1.0"
+description = "[PROJECT_DESCRIPTION]"
+requires-python = ">=3.13"
+dependencies = [
+    "python-dotenv",
+    # add project dependencies here
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
