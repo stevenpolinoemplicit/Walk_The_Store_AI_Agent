@@ -16,6 +16,44 @@ Owner: Steven Chicken | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 3 — Skills system, GCP setup, and project tooling
+**Date:** 2026-04-08
+**Participants:** Claude Code
+
+#### Decisions Made
+- `.claude/commands/` = explicit slash commands; `.claude/skills/` = semantic Agent Skills (directories with SKILL.md per agentskills.io spec)
+- `model:` IS a valid SKILL.md frontmatter field per Anthropic course — used in all skills
+- `allowed-tools` is space-delimited per the spec
+- 4 skills converted to proper directory/SKILL.md structure: `explain-file`, `new-session`, `memory-update`, `env-check`
+- Remaining commands stay as flat `.md` files in `.claude/commands/` for explicit `/` invocation
+- Vertex AI not needed — LLM is Anthropic API, brand memory is NotebookLM, no Google-hosted inference
+- GCP IAM: 13 roles assigned to service account covering full project lifecycle
+- DWD OAuth scopes set in Google Admin for NotebookLM and Drive access
+- `memory-update` skill trigger phrases expanded to include "done for the day", "signing off", "calling it", etc.
+
+#### Files Created
+- `.claude/skills/explain-file/SKILL.md` — semantic skill, spec-compliant
+- `.claude/skills/new-session/SKILL.md` — semantic skill, spec-compliant
+- `.claude/skills/memory-update/SKILL.md` — semantic skill, spec-compliant
+- `.claude/skills/env-check/SKILL.md` — semantic skill, spec-compliant
+- `how_to_build_claude_SKILLS.md` — full reference guide for template repo
+- All 10 slash commands in `.claude/commands/` (new-session, step-status, memory-update, commit, env-check, add-brand, slack-preview, deploy-checklist, intentwise-ready, notebooklm-ready, explain-file)
+- `.claude/commands/claude_skills_list.md` — skills index
+
+#### Files Updated
+- `CLAUDE.md` — added Section 14: skills management standards
+- `memory-update/SKILL.md` — added "done for the day" and related trigger phrases
+- `requirements.txt` + `pyproject.toml` — added `huggingface_hub` as explicit dependency
+
+#### Still To Do
+- [ ] Step 0 blockers: Intentwise OAuth creds, Postgres dev DB, Teamwork token, NotebookLM Enterprise API
+- [ ] Step 9: Dockerfile, Cloud Run, Cloud Scheduler (6:30 AM ET), Secret Manager
+- [ ] Step 10: End-to-end test against 2+ real accounts
+- [ ] Step 11: Demo + threshold adjustment
+- [ ] Intentwise: confirm OAuth token URL and exact MCP field names when credentials arrive
+
+---
+
 ### Session 2 — Steps 2–8: Full Application Build
 **Date:** 2026-04-08
 **Participants:** Claude Code (AI Lead: Steven Polino)
