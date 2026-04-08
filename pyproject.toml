@@ -1,11 +1,16 @@
 [project]
-name = "[PROJECT_NAME]"
+name = "walk-the-store"
 version = "0.1.0"
-description = "[PROJECT_DESCRIPTION]"
+description = "Autonomous AI agent that checks Amazon account health for multiple client brands and delivers actionable daily reports via Slack."
 requires-python = ">=3.13"
 dependencies = [
+    "anthropic",
+    "psycopg2-binary",
+    "slack_sdk",
+    "pydantic",
+    "gradio",
+    "httpx",
     "python-dotenv",
-    # add project dependencies here
 ]
 
 [tool.black]

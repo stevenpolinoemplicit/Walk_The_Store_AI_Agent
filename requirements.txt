@@ -1,0 +1,24 @@
+# Core agent framework and LLM
+anthropic
+
+# Database
+psycopg2-binary
+
+# Slack integration
+slack_sdk
+
+# Data validation
+pydantic
+
+# Gradio UI
+gradio
+
+# HTTP client (Teamwork API)
+httpx
+
+# Environment variable loading
+python-dotenv
+
+# Dev/test
+black
+pytest

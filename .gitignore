@@ -33,3 +33,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Claude Code session resumption — machine-specific, never commit
+claude_resume
+claude_session_log
