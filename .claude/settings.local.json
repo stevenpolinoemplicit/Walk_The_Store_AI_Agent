@@ -7,7 +7,12 @@
       "Bash(chmod +x \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/hooks/save_session.sh\")",
       "Bash(python -m venv .venv)",
       "Bash(.venv/Scripts/pip install:*)",
-      "Bash(\"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.venv/Scripts/pip\" show:*)"
+      "Bash(\"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.venv/Scripts/pip\" show:*)",
+      "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills\")",
+      "Bash(mv \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/commands/\"* \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/\")",
+      "Bash(mv \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/claude_skills_list.md\" \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/\")",
+      "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/commands\")",
+      "Bash(cp \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/\"*.md \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/commands/\")"
     ]
   }
 }
