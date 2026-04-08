@@ -1,0 +1,6 @@
+# intentwise_preferences.yaml — placeholder for Intentwise-provided preferences YAML.
+# Replace this file with the actual YAML received from Intentwise once OAuth credentials are delivered.
+# Used by tools/intentwise_mcp.py to configure MCP query behavior.
+
+# STATUS: BLOCKED — awaiting Intentwise OAuth credentials and preferences file delivery.
+preferences: {}
