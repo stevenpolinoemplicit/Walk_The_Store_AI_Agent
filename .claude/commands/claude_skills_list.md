@@ -90,10 +90,10 @@ Skills are prompts — Claude reads the command file and executes the instructio
 
 ---
 
-### `/notebooklm-ready`
+### `/notebooklm-ready` [DEPRECATED — brand context removed from v1]
 **File:** `.claude/commands/notebooklm-ready.md`
-**Description:** Guides implementation of `tools/notebooklm.py` once NotebookLM Enterprise API access is granted — gathers API details, maps brands to notebooks, and replaces the current stub with a real implementation.
-**When to use:** When NotebookLM Enterprise API access is confirmed and credentials are in hand.
+**Description:** ~~Guides NotebookLM implementation.~~ NotebookLM and brand context are not in scope for POC or v1. This command is deprecated and should not be run.
+**When to use:** Do not use.
 
 ---
 

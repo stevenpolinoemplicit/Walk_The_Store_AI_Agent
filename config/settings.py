@@ -40,7 +40,3 @@ SLACK_OPS_CHANNEL: str = os.environ["SLACK_OPS_CHANNEL"]
 # #note: Teamwork subdomain and API token for read-only task queries
 TEAMWORK_DOMAIN: str = os.environ["TEAMWORK_DOMAIN"]
 TEAMWORK_API_TOKEN: str = os.environ["TEAMWORK_API_TOKEN"]
-
-# --- NotebookLM (TBD — stub until API access is confirmed) ---
-# #note: NotebookLM Enterprise API key — optional until access is granted
-NOTEBOOKLM_API_KEY: str = os.environ.get("NOTEBOOKLM_API_KEY", "")

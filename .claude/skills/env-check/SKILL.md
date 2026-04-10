@@ -11,8 +11,7 @@ Check all required environment variables against `.env.example` without revealin
 
 ## Gotchas
 
-- `NOTEBOOKLM_API_KEY` being empty is **expected and not a bug** — NotebookLM Enterprise API access is pending. Flag it as "Intentionally pending" not "Missing".
-- `INTENTWISE_CLIENT_ID` and `INTENTWISE_CLIENT_SECRET` are also blocked pending delivery from Intentwise — same treatment.
+- `INTENTWISE_CLIENT_ID` and `INTENTWISE_CLIENT_SECRET` are blocked pending delivery from Intentwise — flag as "Pending (blocked)" not "Missing".
 - If `.env` does not exist at all, instruct: `cp .env.example .env` then fill in values. Do not attempt to create it automatically.
 - Never print actual values — presence check only.
 
@@ -28,7 +27,6 @@ Check all required environment variables against `.env.example` without revealin
 |---|---|
 | ANTHROPIC_API_KEY | ✅ Set |
 | INTENTWISE_CLIENT_ID | 🔲 Pending (blocked — awaiting Intentwise delivery) |
-| NOTEBOOKLM_API_KEY | 🔲 Pending (blocked — awaiting Enterprise API access) |
 | EMPLICIT_PG_HOST | ❌ Missing |
 
 Then:

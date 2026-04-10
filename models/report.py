@@ -31,7 +31,7 @@ class HealthReport(BaseModel):
     # Teamwork completed tasks for this brand (read-only)
     teamwork_completed_tasks: List[dict] = []
 
-    # Brand context from NotebookLM (populated when API available)
+    # Brand context summary — reserved for a future version, not populated in v1
     brand_context: Optional[str] = None
 
     # Tracks which metrics had no data so the report notes gaps instead of crashing

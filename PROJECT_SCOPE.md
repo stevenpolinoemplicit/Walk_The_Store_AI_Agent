@@ -8,9 +8,9 @@
 
 ## Project Overview
 
-An autonomous AI agent that runs daily at 6:30 AM ET. It checks Amazon account health for multiple client brands, classifies issues by severity, cross-references Teamwork for resolution activity, incorporates per-brand knowledge from NotebookLM, and delivers actionable reports via Slack.
+An autonomous AI agent that runs daily at 9:00 AM ET. It checks Amazon account health for multiple client brands, classifies issues by severity, cross-references Teamwork for resolution activity, and delivers actionable reports via Slack.
 
-**Sprint 1 Scope:** Account Health + Brand Memory only.
+**Sprint 1 Scope:** Account Health only.
 **Owner:** Steven Chicken
 **Approvers:** Adam Weiler, Emily Lindahl
 
@@ -21,14 +21,13 @@ An autonomous AI agent that runs daily at 6:30 AM ET. It checks Amazon account h
 - Shipping metrics, policy compliance, customer service (ODR, A-to-Z), account health rating, account status alerts
 - Auto-classification: 🔴 Critical / 🟡 Warning / 🟢 Healthy
 - Teamwork read-only — shows completed tasks per brand
-- Per-brand knowledge from NotebookLM (20+ existing notebooks)
 - Slack alerts: channel + DM on critical, channel only on warning
 - Per-brand daily report + cross-brand summary to ops channel
 - Graceful handling of missing data (no crashes)
 
 ## Not in Sprint 1
 
-Inventory health, inbound/shipment status, performance notifications, case log review, Walmart checks, PDF reports, Teamwork task creation, employee activity tracking.
+Inventory health, inbound/shipment status, performance notifications, case log review, Walmart checks, PDF reports, Teamwork task creation, employee activity tracking, brand memory / per-brand context.
 
 ---
 
@@ -43,7 +42,6 @@ Inventory health, inbound/shipment status, performance notifications, case log r
 | Operational Data | Emplicit PostgreSQL (`psycopg2`) |
 | Task Tracking | Teamwork API via `httpx` (read-only) |
 | Alerts | Slack (`slack_sdk`) |
-| Brand Memory | NotebookLM Enterprise API (details TBD) |
 | Data Validation | `pydantic` |
 | UI | `gradio` |
 | Hosting | Google Cloud (Cloud Run + Cloud Scheduler) |
@@ -94,7 +92,7 @@ walk-the-store/
 │   ├── postgres.py               # Emplicit Postgres read/write
 │   ├── teamwork.py               # Teamwork API client (read-only)
 │   ├── slack_alerts.py           # Slack channel posts + DMs
-│   └── notebooklm.py            # NotebookLM API client (TBD)
+│   └── notebooklm.py            # Preserved placeholder — brand context not in v1
 │
 └── tests/
     ├── test_classifier.py        # Severity logic tests
@@ -112,12 +110,11 @@ walk-the-store/
 3. For each account:
    a. Query Intentwise MCP for account health data
    b. Query Teamwork for completed tasks per brand
-   c. Query NotebookLM for brand context (when available)
-   d. Classify each metric via classifier.py
-   e. Build report via report_builder.py
-   f. Format output via slack_formatter.py
-   g. Route alerts via slack_alerts.py
-   h. Save report to Emplicit Postgres
+   c. Classify each metric via classifier.py
+   d. Build report via report_builder.py
+   e. Format output via slack_formatter.py
+   f. Route alerts via slack_alerts.py
+   g. Save report to Emplicit Postgres
 4. After all accounts: build cross-brand summary, post to ops Slack channel
 ```
 
@@ -157,12 +154,6 @@ Key fields:
 - Endpoint: `https://{TEAMWORK_DOMAIN}.teamwork.com/projects/{project_id}/tasks.json`
 - Auth: Basic auth (API token)
 - Pull: task name, status, assignee, completion date
-
-### NotebookLM (20+ existing notebooks, one per brand)
-
-- NotebookLM Enterprise API (access pending upgrade)
-- Contains: client history, SOPs, brand guidelines, past issues, escalation notes
-- Integration method TBD pending API access
 
 ---
 
@@ -220,9 +211,6 @@ SLACK_OPS_CHANNEL=
 # Teamwork
 TEAMWORK_DOMAIN=
 TEAMWORK_API_TOKEN=
-
-# NotebookLM (TBD)
-NOTEBOOKLM_API_KEY=
 ```
 
 ---
@@ -236,7 +224,6 @@ Complete each step before moving to the next. Per CLAUDE.md, ask permission befo
 - [ ] Confirm headless OAuth supported
 - [ ] Emplicit Postgres dev/test database
 - [ ] Teamwork API token
-- [ ] NotebookLM Enterprise API access
 
 ### Step 1: Project Setup
 - [ ] Create MVC folder structure per this document
@@ -256,7 +243,6 @@ Complete each step before moving to the next. Per CLAUDE.md, ask permission befo
 - [ ] `intentwise_mcp.py` — OAuth, connect to MCP, test query
 - [ ] `teamwork.py` — HTTP client, get tasks by project ID
 - [ ] `slack_alerts.py` — post to channel, DM user
-- [ ] `notebooklm.py` — stub until API access confirmed
 
 ### Step 4: Severity Classifier (`/controllers`)
 - [ ] `classifier.py` — raw data in → severity + findings out
@@ -272,7 +258,7 @@ Complete each step before moving to the next. Per CLAUDE.md, ask permission befo
 ### Step 6: Report Builder + Views
 - [ ] `controllers/report_builder.py` — per-brand + cross-brand summary
 - [ ] `views/slack_formatter.py` — format for Slack markdown
-- [ ] Include Teamwork status and brand context in reports
+- [ ] Include Teamwork status in reports
 
 ### Step 7: Alert Routing
 - [ ] Wire severity → Slack routing
@@ -286,7 +272,7 @@ Complete each step before moving to the next. Per CLAUDE.md, ask permission befo
 ### Step 9: Deploy
 - [ ] Dockerfile
 - [ ] Google Cloud Run
-- [ ] Cloud Scheduler (6:30 AM ET)
+- [ ] Cloud Scheduler (9:00 AM ET)
 - [ ] Secret Manager for env vars
 - [ ] Logging + monitoring
 
@@ -319,7 +305,6 @@ Complete each step before moving to the next. Per CLAUDE.md, ask permission befo
 |---|---|---|
 | Intentwise MCP access (OAuth Client ID, credentials, YAML) | Steven → Intentwise | Requested |
 | Confirm OAuth supports client_credentials (headless) | Steven → Intentwise | Requested |
-| NotebookLM Enterprise API access | Steven | Pending upgrade |
 | Emplicit Postgres dev/test database | Steven → Data Team | Open |
 | Teamwork API token with read access | Steven → Boss | Open |
 | Confirm `walk_the_store.account_config` still active | Steven → Boss | Open |

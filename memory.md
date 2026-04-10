@@ -7,14 +7,45 @@
 
 ## Project Overview
 
-Autonomous AI agent that runs daily at 6:30 AM ET. Checks Amazon account health for multiple client brands via Intentwise MCP, classifies issues by severity (Critical/Warning/Healthy), cross-references Teamwork for resolution activity, incorporates per-brand knowledge from NotebookLM, and delivers actionable reports via Slack.
+Autonomous AI agent that runs daily at 9:00 AM ET. Checks Amazon account health for multiple client brands via Intentwise MCP, classifies issues by severity (Critical/Warning/Healthy), cross-references Teamwork for resolution activity, and delivers actionable reports via Slack.
 
-Sprint 1 scope: Account Health + Brand Memory only.
+Sprint 1 scope: Account Health only. Brand memory deferred to a future version.
 Owner: Steven Chicken | Approvers: Adam Weiler, Emily Lindahl
 
 ---
 
 ## Session Log
+
+### Session 4 — NotebookLM removed, schedule corrected
+**Date:** 2026-04-10
+**Participants:** Claude Code
+
+#### Decisions Made
+- NotebookLM fully removed from v1 — not stubbed for later, not replaced. Brand memory / agentic context is explicitly out of scope for POC and v1.
+- Reason: NotebookLM Enterprise API has no query/chat endpoint; consumer notebooks inaccessible from any API. Decision: defer brand context entirely rather than substitute.
+- Schedule corrected: 6:30 AM ET → 9:00 AM ET (Intentwise data ready at 5 AM PT = 8 AM ET; 9 AM ET gives safe margin).
+- `tools/notebooklm.py` preserved per no-delete rule but hollowed out to unconditional `return None`.
+
+#### Files Updated
+- `tools/notebooklm.py` — hollowed out; returns None unconditionally, no credential logic
+- `controllers/report_builder.py` — removed notebooklm import; brand_ctx = None inline; removed data_gaps "notebooklm" entry
+- `config/settings.py` — removed NOTEBOOKLM_API_KEY
+- `.env.example` — removed NOTEBOOKLM_API_KEY
+- `models/report.py` — updated brand_context field comment to "reserved for future version"
+- `PROJECT_SCOPE.md` — removed NotebookLM from tech stack, data sources, build order, blockers; schedule corrected; brand memory moved to "Not in Sprint 1"
+- `.claude/commands/notebooklm-ready.md` — prepended deprecation header
+- `.claude/skills/env-check/SKILL.md` — removed NOTEBOOKLM_API_KEY treatment
+- `.claude/skills/new-session/SKILL.md` — removed NotebookLM from blockers list
+- `.claude/commands/claude_skills_list.md` — marked /notebooklm-ready as deprecated
+
+#### Still To Do
+- [ ] Step 0 blockers: Intentwise OAuth credentials, Emplicit Postgres dev DB, Teamwork API token
+- [ ] Step 9: Dockerfile, Cloud Run, Cloud Scheduler (9:00 AM ET), Secret Manager
+- [ ] Step 10: End-to-end test against 2+ real accounts
+- [ ] Step 11: Demo + threshold adjustment
+- [ ] Intentwise: confirm OAuth token URL and exact MCP field names when credentials arrive
+
+---
 
 ### Session 3 — Skills system, GCP setup, and project tooling
 **Date:** 2026-04-08

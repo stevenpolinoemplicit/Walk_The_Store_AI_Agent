@@ -16,7 +16,11 @@
       "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/explain-file\")",
       "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/new-session\")",
       "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/memory-update\")",
-      "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/env-check\")"
+      "Bash(mkdir -p \"/c/Users/stpol/OneDrive/Desktop/Walk_The_Store_AI_Agent/.claude/skills/env-check\")",
+      "WebSearch",
+      "WebFetch(domain:docs.cloud.google.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(python:*)"
     ]
   }
 }

@@ -1,5 +1,5 @@
 # report_builder.py — assembles per-brand HealthReport objects and builds the cross-brand summary.
-# Coordinates data from Intentwise, Teamwork, NotebookLM, and the classifier into a single report.
+# Coordinates data from Intentwise, Teamwork, and the classifier into a single report.
 
 import logging
 from datetime import date
@@ -8,7 +8,7 @@ from typing import List, Optional
 from controllers.classifier import classify_account
 from models.account import AccountConfig
 from models.report import HealthReport
-from tools import intentwise_mcp, teamwork, notebooklm
+from tools import intentwise_mcp, teamwork
 
 logger = logging.getLogger(__name__)
 
@@ -96,13 +96,8 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
         logger.warning(f"[{brand}] Teamwork data unavailable — continuing without it")
         data_gaps.append("teamwork")
 
-    # --- NotebookLM: brand context (stub) ---
-    brand_context: Optional[str] = None
-    try:
-        brand_context = notebooklm.get_brand_context(brand)
-    except Exception:
-        logger.warning(f"[{brand}] NotebookLM context unavailable — continuing without it")
-        data_gaps.append("notebooklm")
+    # Brand context not implemented in v1
+    brand_ctx: Optional[str] = None
 
     # --- Assemble raw metrics dict for classifier ---
     metrics = {
@@ -138,7 +133,7 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
         food_safety_count=metrics["food_safety_count"],
         ip_complaint_count=metrics["ip_complaint_count"],
         teamwork_completed_tasks=completed_tasks,
-        brand_context=brand_context,
+        brand_context=brand_ctx,
         data_gaps=data_gaps,
     )
 

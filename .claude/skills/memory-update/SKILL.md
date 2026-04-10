@@ -13,7 +13,7 @@ Update `memory.md` with a new session log entry covering what happened this sess
 
 - New entries go at the **top** of `## Session Log` — reverse chronological order, newest first. Never append to the bottom.
 - Never delete or overwrite existing log entries.
-- NOTEBOOKLM_API_KEY and Intentwise credentials are still pending — if work was blocked on these, log them as open todos.
+- Intentwise credentials are still pending — if work was blocked on these, log them as open todos.
 - Session numbers increment from the last entry in memory.md — read it first to get the current count.
 - After writing, remind the user to run `git add memory.md` and commit it separately with message `docs: update session log`.
 
