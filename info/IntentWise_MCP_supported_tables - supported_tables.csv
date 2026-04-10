@@ -1,0 +1,36 @@
+schema_file,dataset,table_name,entity,column_count,description
+intentwise-dsp.yaml,amazon_source_data,dsp_audience_report,audience,41,DSP audience report with segment-level metrics. Joins dsp_lineitem and dsp_order for dimension enrichment.
+intentwise-dsp.yaml,amazon_source_data,dsp_creative,creative,7,"DSP creative structure table with creative metadata (name, type, size)."
+intentwise-dsp.yaml,amazon_source_data,dsp_creative_report,creative,36,"DSP creative report with daily performance metrics (impressions, clicks, spend, sales)."
+intentwise-dsp.yaml,amazon_source_data,dsp_lineitem,lineitem,14,"DSP line item structure table with line item metadata (name, type, budget)."
+intentwise-dsp.yaml,amazon_source_data,dsp_lineitem_report,lineitem,29,"DSP line item report with daily performance metrics (impressions, clicks, spend, conversions)."
+intentwise-dsp.yaml,amazon_source_data,dsp_order,order,24,"DSP order structure table with order metadata (name, goal, budget, status)."
+intentwise-dsp.yaml,amazon_source_data,dsp_order_report,order,28,"DSP order report with daily performance metrics (impressions, clicks, spend, sales, conversions)."
+intentwise-dsp.yaml,amazon_source_data,dsp_product_report,product,31,DSP product report with daily product-level performance metrics.
+intentwise-vendor-central.yaml,amazon_source_data,vendorcentral_couponperformance_coupon,coupon,15,"Vendor Central coupon performance metrics — clips, redemptions, budget utilisation per coupon."
+intentwise-vendor-central.yaml,amazon_source_data,vendorcentral_purchaseorder_report,purchase_order,41,"Vendor Central purchase orders from Amazon — order state, quantities ordered/accepted/rejected/received, costs, and party details."
+intentwise-vendor-central.yaml,amazon_source_data,vendorcentral_purchaseorder_itemquantity,purchase_order,8,"Vendor Central purchase order item quantity change history — tracks accepted, rejected, and received quantity updates."
+intentwise-vendor-central.yaml,amazon_source_data,vendorcentral_retailanalytics_inventory_report,inventory,27,"Vendor Central Retail Analytics inventory health by ASIN — on-hand sellable/unsellable inventory, net received inventory, open PO units, sell-through rate."
+intentwise-vendor-central.yaml,amazon_source_data,vendorcentral_retailanalytics_forecast_report,forecast,10,Vendor Central demand forecast by ASIN — mean and percentile (P70/P80/P90) forecast units for upcoming periods.
+intentwise-vendor-central.yaml,amazon_source_data,vendorcentral_retailanalytics_netppm_report,netppm,6,Vendor Central Net Pure Product Margin (Net PPM) by ASIN over time.
+intentwise-ecommerce-graph.yaml,intentwise_ecommerce_graph,account_summary,account,23,Account-level daily summary combining advertising metrics with organic/retail metrics.
+intentwise-ecommerce-graph.yaml,intentwise_ecommerce_graph,advertised_product_summary,advertised_product,28,Ad-level product performance at the product x campaign x adgroup grain. Contains ONLY advertising metrics.
+intentwise-ecommerce-graph.yaml,intentwise_ecommerce_graph,campaign_summary,campaign,32,"Campaign-level daily summary with advertising metrics, budget pacing, placement data, and NTB metrics."
+intentwise-ecommerce-graph.yaml,intentwise_ecommerce_graph,searchterm_summary,search_term,30,Search term level daily summary with advertising metrics at the search term x campaign x adgroup grain.
+intentwise-ecommerce-graph.yaml,intentwise_ecommerce_graph,keyword_summary,keyword,28,Keyword-level daily summary with advertising metrics at the keyword x match type x campaign x adgroup grain.
+intentwise-ecommerce-graph.yaml,intentwise_ecommerce_graph,label_summary,label,16,Label-level daily summary with advertising metrics grouped by user-defined labels.
+intentwise-ecommerce-graph.yaml,intentwise_ecommerce_graph,product_summary,product,40,Holistic product-level daily summary combining advertising metrics with organic/retail metrics.
+intentwise-ecommerce-graph.yaml,intentwise_ecommerce_graph,producttarget_summary,product_target,26,Product target level daily summary with advertising metrics at the target x campaign x adgroup grain.
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_inventory_report,inventory,17,Current inventory quantities and pricing by ASIN/SKU. Covers merchant-fulfilled (FBM) stock levels.
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_fbamanageinventoryhealth_report,inventory,41,"FBA inventory health with aging analysis, storage fee projections, sell-through velocity, competitive pricing, and recommendations."
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_restockinventory_report,inventory,30,"FBA restock recommendations showing current stock breakdown, sales velocity, replenishment quantities, and ship dates."
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_ordersbydate_report,order,28,"Individual order line items from Seller Central All Orders report with pricing, shipping, and fulfillment details."
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_fbareturns_report,returns,16,"FBA customer returns with return reason, disposition, and fulfillment center details."
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_fbastoragefees_report,storage_fees,26,FBA monthly storage fee charges by ASIN/FNSKU and fulfillment center.
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_fbaamazonfulfilledshipments_report,shipments,19,"FBA outbound shipments with shipment details, carrier/tracking info, and shipping geography."
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_settlement_report_v2,settlement,16,"Settlement report with financial line items — revenue, fees, promotions, taxes per transaction."
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_fbalongtermstoragefeecharges_report,long_term_storage_fee,18,"FBA long-term storage fee (LTSF) charges by ASIN/FNSKU with quantity, amount, and age tier."
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_fbaamazonfulfilledinventory_report,inventory,11,FBA fulfilled inventory snapshot — current available quantity and condition per SKU.
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_couponperformance_coupon,coupon,19,"Coupon performance metrics — clips, redemptions, budget usage, sales, and discount details."
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_fbasubscribeandsaveforecast_report,subscribe_and_save,17,Subscribe & Save forecast — active subscriptions and scheduled unit forecasts for next 8 weeks.
+intentwise-seller-central.yaml,amazon_source_data,sellercentral_fbasubscribeandsaveperformance_report,subscribe_and_save,23,"Subscribe & Save performance — shipped units, OOS rates, sale prices, and discounts for last 4 weeks."
