@@ -101,8 +101,7 @@ def save_report(report: HealthReport) -> None:
 
 # #note: Fetches all account health metrics for a seller from Intentwise-synced Postgres tables.
 # Each sub-query is isolated so a single table failure does not block the rest.
-# april13 waiting on confirmation - confirm exact Postgres schema name with data team.
-#   Assumed: 'amazon_source_data' — update all table references below if different.
+# CONFIRMED: schema is 'amazon_source_data' (main schemas in use: amazon_source_data, amazon_marketing_cloud).
 # april13 waiting on confirmation - confirm seller identifier column name in each table.
 #   Assumed: 'seller_id' — update WHERE clauses if column is named differently (e.g. 'account_id').
 # april13 waiting on confirmation - confirm marketplace column name in each table.

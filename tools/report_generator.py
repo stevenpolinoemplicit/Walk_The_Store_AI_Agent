@@ -227,17 +227,17 @@ def create_report(report: HealthReport, account: AccountConfig) -> str:
         )
 
     # Step 4: Set sharing — anyone at the Emplicit domain can view with the link
-    # april13 waiting on confirmation - confirm the Emplicit Google Workspace domain (e.g. emplicit.com)
+    # CONFIRMED: Emplicit Google Workspace domain is emplicit.co
     try:
         drive_service.permissions().create(
             fileId=doc_id,
             body={
                 "type": "domain",
                 "role": "reader",
-                "domain": "emplicit.com",  # april13 waiting on confirmation - confirm Emplicit domain
+                "domain": "emplicit.co",
             },
         ).execute()
-        logger.info(f"[{report.brand_name}] Drive sharing set to emplicit.com domain")
+        logger.info(f"[{report.brand_name}] Drive sharing set to emplicit.co domain")
     except Exception as e:
         logger.warning(
             f"[{report.brand_name}] Could not set Drive sharing permission: {e}"
