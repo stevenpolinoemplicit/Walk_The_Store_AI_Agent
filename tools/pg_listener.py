@@ -1,4 +1,4 @@
-# pg_listener.py — DEPRECATED. LISTEN/NOTIFY approach replaced by Cloud Scheduler + Cloud Run Jobs.
+# pg_listener.py — DEPRECATED. LISTEN/NOTIFY approach replaced by Cloud Scheduler + Cloud Run Jobs. april 13 steven polino. verfied 
 # Cloud Scheduler triggers the job on a fixed daily schedule — no persistent connection needed.
 # This file is preserved per project no-delete policy but is not used.
 #

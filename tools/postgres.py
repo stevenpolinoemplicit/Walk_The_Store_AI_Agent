@@ -1,3 +1,7 @@
+# Three jobs: (1) get_active_accounts() — reads walk_the_store.account_config to get the brand list. (2) get_account_health_metrics() — queries 5 Intentwise-synced tables in      
+# amazon_source_data to get the 8 health metrics for one seller. Each table query is isolated so one failure doesn't block the others. (3) save_report() — writes the
+# completed HealthReport to walk_the_store.daily_health_reports.
+# ---
 # postgres.py — Emplicit PostgreSQL client.
 # Provides: fetch active accounts, fetch account health metrics from Intentwise-synced tables,
 # and save completed reports. All connection params come from config/settings.py — never hardcoded here.
