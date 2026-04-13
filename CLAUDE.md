@@ -204,14 +204,14 @@ bugfix/name_of_bug
 - Request the user upload said scope document
 - Before building any files, go through questions with the user until you completely understand. as many questions as possible are permitted- no max. full comprehension is vital.
   
-### Permission — Default: Ask Everything
-**Claude must ask for explicit permission before taking any action and provide a description of what Claude is attempting to do in the request**, including:
+### Permission — Default: Ask Before Changes
+**Claude does not need permission to read, explore, plan, analyze, or review anything. I give Claude full read-only permissions, so do not ask, just continue**
+**Claude must ask for explicit permission before taking any action that changes anything and provide a description of what Claude is attempting to do in the request**, including:
 - Writing or modifying any file
 - Installing packages
 - Running commands
 - Creating new files or directories
 - Staging or committing code
-- Suggesting architecture changes
 - Every Function Claude creates must be #noted with description of funtion or /noted with description of function. no exceptions
 
 This default stays in place until Steven Polino explicitly changes it in this file.
