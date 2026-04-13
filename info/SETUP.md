@@ -104,15 +104,12 @@ Follow `docs/CLOUD_RUN_DEPLOY.md` steps 3–6:
 
 ---
 
-## PART 7 — Claude Enterprise Setup
+## PART 7 — Ask Emplicit (Claude Enterprise)
 
-Follow `docs/CLAUDE_ENTERPRISE_SETUP.md`:
+No code required. Reports land in Drive automatically after each agent run.
 
-- [ ] Create **Walk the Store Agent** Project in claude.ai
-- [ ] Add system prompt (copy from `docs/CLAUDE_ENTERPRISE_SETUP.md`)
-- [ ] Connect Google Drive folder(s) where reports are saved
-- [ ] Share project with ops team
-- [ ] Test: ask "What was [Brand]'s status today?" — Claude should cite the Drive report
+- [x] Ask Emplicit is connected to Google Drive — confirmed. No setup needed.
+- [ ] Test: after first live agent run, open Ask Emplicit → ask "What was [Brand]'s status today?" → it should cite the Drive report
 
 ---
 
