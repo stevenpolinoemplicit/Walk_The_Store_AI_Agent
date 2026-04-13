@@ -7,14 +7,67 @@
 
 ## Project Overview
 
-Autonomous AI agent that runs daily at 9:00 AM ET. Checks Amazon account health for multiple client brands via Intentwise MCP, classifies issues by severity (Critical/Warning/Healthy), cross-references Teamwork for resolution activity, and delivers actionable reports via Slack.
+Autonomous AI agent triggered daily at 7:00 AM PDT via Cloud Scheduler + Cloud Run Jobs. Reads Amazon account health data from Intentwise-synced Postgres tables (amazon_source_data), classifies by severity (Critical/Warning/Healthy), generates a Google Doc report per brand saved to Drive, posts a Slack notification with the Drive link. Claude Enterprise (claude.ai) handles interactive chat via Drive connector — no custom bot.
 
-Sprint 1 scope: Account Health only. Brand memory deferred to a future version.
-Owner: Steven Chicken | Approvers: Adam Weiler, Emily Lindahl
+POC/v1 scope: Account Health only. Brand memory, inventory health, Walmart out of scope.
+Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ---
 
 ## Session Log
+
+### Session 5 — Full POC rebuild: Cloud Run Jobs, Google Docs output, Claude Enterprise chat
+**Date:** 2026-04-13
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Intentwise MCP removed** — data read directly from Intentwise-synced Postgres tables (`amazon_source_data`); no direct Intentwise API calls
+- **LISTEN/NOTIFY → Cloud Scheduler + Cloud Run Jobs** — Intentwise syncs predictably by 6:45 AM PDT; scheduler fires at 7:00 AM PDT (14:00 UTC); no persistent connection needed, simpler and free
+- **Output: Google Doc per brand** — matches example PDF format (header, exec summary, key metrics table, detailed findings, footer); saved to per-brand Drive folder; Slack posts brief notification with link
+- **Claude Enterprise for chat** — Emplicit already has Claude Enterprise; Drive connector reads stored reports; no custom Slack bot needed
+- **Gradio UI cut** — replaced by `python main.py` for manual runs and Claude Enterprise for viewing; `dashboard.py` deprecated per no-delete policy
+- **Cloud Run Jobs over Cloud Run service** — no port, no health check, cleaner for batch work
+- **Emplicit domain confirmed: `emplicit.co`** (not `.com`)
+- **Schema confirmed: `amazon_source_data`** (also `amazon_marketing_cloud` exists but not used here)
+- **Tables are append-only** — new rows inserted daily; `ORDER BY date DESC LIMIT 1` is correct
+- **Sync completes by 6:45 AM PDT** — scheduler set to 7:00 AM PDT for 15-min buffer
+- **Brand data for account_config lives in user's Google Sheets** — will be provided when ready to populate table; use `/add-brand` to generate INSERT statements
+
+#### Files Created
+- `tools/pg_listener.py` — created then immediately deprecated (replaced by Cloud Scheduler)
+- `tools/report_generator.py` — Google Doc creator matching example PDF; saves to Drive; returns URL
+- `Dockerfile` — Python 3.13-slim, no port, `CMD python main.py`
+- `docs/pg_trigger_setup.sql` — created then deprecated (LISTEN/NOTIFY approach dropped)
+- `docs/CLOUD_RUN_DEPLOY.md` — Cloud Run Jobs + Cloud Scheduler deploy guide
+- `docs/CLAUDE_ENTERPRISE_SETUP.md` — claude.ai Walk the Store Project setup guide
+- `info/SETUP.md` — full setup checklist for today: blockers → credentials → local test → GCP → deploy → Claude Enterprise
+
+#### Files Updated
+- `main.py` — simplified to ~20 lines: just calls `run_agent()` and exits
+- `controllers/orchestrator.py` — calls `report_generator.create_report()` after build; passes `drive_url` to `_route_alerts`
+- `views/slack_formatter.py` — added `format_notification(report, drive_url)` for brief Block Kit + Drive link
+- `tools/slack_alerts.py` — added optional `drive_url` param
+- `tools/postgres.py` — added `get_account_health_metrics()` querying 5 Intentwise tables; `#april13` comments on all unconfirmed column names; schema confirmed
+- `controllers/report_builder.py` — removed Intentwise imports; pulls from `postgres.get_account_health_metrics()`
+- `config/settings.py` — added `GOOGLE_SERVICE_ACCOUNT_JSON`
+- `.env.example` — added Google service account section
+- `requirements.txt` — added `google-api-python-client`, `google-auth`, `google-auth-httplib2`; removed `asyncpg`, `gradio`
+- `tools/intentwise_mcp.py` — all functions return None (deprecated)
+- `views/dashboard.py` — marked deprecated
+- `info/New_POC_Plan_April13.md` — updated with final architecture
+
+#### Still To Do
+- [ ] Confirm Postgres column names: seller_id col, marketplace col, date col, all 5 metric table column names (ask data team)
+- [ ] Confirm `walk_the_store.account_config` is active (ask Gilbert) and get CREATE TABLE SQL if needed
+- [ ] Share Google Sheet with brand data → generate SQL INSERTs for account_config
+- [ ] Set up Google service account with Drive + Docs scopes; download SA JSON
+- [ ] Fill in `.env` with all credentials
+- [ ] Run local test: `python main.py`
+- [ ] GCP setup: enable APIs, Artifact Registry, Secret Manager, Cloud Run Job, Cloud Scheduler
+- [ ] Claude Enterprise: create Walk the Store Project, connect Drive folders, share with ops team
+- [ ] Confirm `drive_folder_id` values are in `account_config` for all active brands
+
+---
 
 ### Session 4 — NotebookLM removed, schedule corrected
 **Date:** 2026-04-10
