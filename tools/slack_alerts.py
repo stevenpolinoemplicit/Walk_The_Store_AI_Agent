@@ -3,6 +3,7 @@
 # Token comes from config/settings.py. Channel and user IDs come from AccountConfig.
 
 import logging
+from typing import Optional
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -15,10 +16,15 @@ logger = logging.getLogger(__name__)
 _client = WebClient(token=settings.SLACK_BOT_TOKEN)
 
 
-# #note: Posts a formatted message to a Slack channel; used for brand-level alerts and daily summary
-def post_to_channel(channel_id: str, text: str, blocks: list = None) -> None:
+# #note: Posts a formatted message to a Slack channel; drive_url is attached as context if provided
+def post_to_channel(
+    channel_id: str,
+    text: str,
+    blocks: Optional[list] = None,
+    drive_url: Optional[str] = None,
+) -> None:
     try:
-        kwargs = {"channel": channel_id, "text": text}
+        kwargs: dict = {"channel": channel_id, "text": text}
         if blocks:
             kwargs["blocks"] = blocks
         _client.chat_postMessage(**kwargs)
@@ -31,7 +37,6 @@ def post_to_channel(channel_id: str, text: str, blocks: list = None) -> None:
 # #note: DMs a Slack user directly; used only for critical severity alerts to account managers
 def send_dm(user_id: str, text: str) -> None:
     try:
-        # Open a direct message channel, then post to it
         dm_response = _client.conversations_open(users=user_id)
         dm_channel = dm_response["channel"]["id"]
         _client.chat_postMessage(channel=dm_channel, text=text)
@@ -42,5 +47,5 @@ def send_dm(user_id: str, text: str) -> None:
 
 
 # #note: Posts the cross-brand daily summary to the ops channel defined in .env
-def post_ops_summary(text: str, blocks: list = None) -> None:
+def post_ops_summary(text: str, blocks: Optional[list] = None) -> None:
     post_to_channel(settings.SLACK_OPS_CHANNEL, text, blocks)

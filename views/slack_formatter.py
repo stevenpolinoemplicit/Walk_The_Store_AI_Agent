@@ -1,6 +1,6 @@
-# slack_formatter.py — formats a HealthReport into Slack Block Kit message blocks.
-# Returns (fallback_text, blocks) so the caller can pass both to the Slack API.
-# Emojis and structure follow the severity level of the report.
+# slack_formatter.py — formats HealthReport objects into Slack Block Kit messages.
+# format_brand_report: full detailed report (legacy, kept for backward compat)
+# format_notification: brief summary with Drive link — used by the POC notification flow
 
 import logging
 from typing import Optional
@@ -33,7 +33,7 @@ def _format_finding(finding) -> str:
 def _format_teamwork_section(tasks: list[dict]) -> Optional[str]:
     if not tasks:
         return None
-    recent = tasks[:5]  # show up to 5 most recent
+    recent = tasks[:5]
     lines = ["*Recent Teamwork completions:*"]
     for t in recent:
         date_str = t.get("completed_on", "")
@@ -41,14 +41,64 @@ def _format_teamwork_section(tasks: list[dict]) -> Optional[str]:
     return "\n".join(lines)
 
 
-# #note: Builds the full Slack Block Kit message for one brand report; returns (text, blocks) tuple
-def format_brand_report(report: HealthReport) -> tuple[str, list]:
+# #note: Builds a brief Slack Block Kit notification for one brand — summary + Drive link.
+#        Used by the POC flow: orchestrator calls this after creating the Drive report.
+#        Returns (fallback_text, blocks) — healthy accounts return (None, None) to suppress posting.
+def format_notification(
+    report: HealthReport, drive_url: Optional[str]
+) -> tuple[Optional[str], Optional[list]]:
+    if report.highest_severity == HEALTHY:
+        return None, None
+
     emoji = _emoji(report.highest_severity)
-    title = f"{emoji} *{report.brand_name}* — {report.report_date}"
-    fallback_text = f"{emoji} {report.brand_name}: {report.highest_severity.upper()} ({report.report_date})"
+    severity_upper = report.highest_severity.upper()
+    fallback_text = f"{emoji} {report.brand_name} — {severity_upper} | {report.report_date}"
+
+    # Count critical and warning findings for the summary line
+    critical_count = sum(1 for f in report.findings if f.severity == CRITICAL)
+    warning_count = sum(1 for f in report.findings if f.severity == WARNING)
+    counts_text = f"{critical_count} critical · {warning_count} warning"
+
+    # Show top findings (critical first, then warning)
+    top_findings = [f for f in report.findings if f.severity in (CRITICAL, WARNING)][:4]
+    findings_text = "\n".join(f"• {_format_finding(f)}" for f in top_findings)
+
+    # Build the Drive link line — gracefully handles None if Drive failed
+    if drive_url:
+        link_text = f"📄 <{drive_url}|View Full Report>"
+    else:
+        link_text = "_(Drive report unavailable — check logs)_"
+
+    body_text = f"{counts_text}\n{findings_text}\n{link_text}"
 
     blocks = [
-        # Header
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f"{emoji} {report.brand_name} — {severity_upper}",
+            },
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": body_text},
+        },
+        {"type": "divider"},
+    ]
+
+    return fallback_text, blocks
+
+
+# #note: Builds the full detailed Slack Block Kit message for one brand report; returns (text, blocks) tuple.
+#        Kept for backward compatibility and manual review use cases.
+def format_brand_report(report: HealthReport) -> tuple[str, list]:
+    emoji = _emoji(report.highest_severity)
+    fallback_text = (
+        f"{emoji} {report.brand_name}: {report.highest_severity.upper()} ({report.report_date})"
+    )
+
+    blocks = [
         {
             "type": "header",
             "text": {
@@ -57,7 +107,6 @@ def format_brand_report(report: HealthReport) -> tuple[str, list]:
             },
         },
         {"type": "divider"},
-        # Findings section
         {
             "type": "section",
             "text": {
@@ -68,7 +117,6 @@ def format_brand_report(report: HealthReport) -> tuple[str, list]:
         },
     ]
 
-    # Data gaps notice
     if report.data_gaps:
         blocks.append(
             {
@@ -80,18 +128,13 @@ def format_brand_report(report: HealthReport) -> tuple[str, list]:
             }
         )
 
-    # Teamwork section
     teamwork_text = _format_teamwork_section(report.teamwork_completed_tasks)
     if teamwork_text:
         blocks.append({"type": "divider"})
         blocks.append(
-            {
-                "type": "section",
-                "text": {"type": "mrkdwn", "text": teamwork_text},
-            }
+            {"type": "section", "text": {"type": "mrkdwn", "text": teamwork_text}}
         )
 
-    # Brand context (NotebookLM) if available
     if report.brand_context:
         blocks.append({"type": "divider"})
         blocks.append(
@@ -105,5 +148,4 @@ def format_brand_report(report: HealthReport) -> tuple[str, list]:
         )
 
     blocks.append({"type": "divider"})
-
     return fallback_text, blocks

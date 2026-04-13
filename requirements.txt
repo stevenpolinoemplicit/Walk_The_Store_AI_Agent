@@ -10,9 +10,6 @@ slack_sdk
 # Data validation
 pydantic
 
-# Gradio UI
-gradio
-
 # Hugging Face Hub
 huggingface_hub
 
@@ -21,6 +18,11 @@ httpx
 
 # Environment variable loading
 python-dotenv
+
+# Google Drive + Docs — report generation and storage
+google-api-python-client
+google-auth
+google-auth-httplib2
 
 # Dev/test
 black

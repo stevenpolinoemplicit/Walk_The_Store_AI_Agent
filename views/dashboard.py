@@ -1,6 +1,7 @@
-# dashboard.py — Gradio UI for manual agent triggers and report viewing.
-# Provides a simple web interface so the ops team can run the agent on demand
-# and view the most recent reports without needing terminal access.
+# dashboard.py — DEPRECATED. Gradio UI removed from scope.
+# Manual triggers: run `python main.py --mode agent` from the terminal or a Cloud Run one-off job.
+# Report viewing: Drive docs linked in Slack, or ask Claude Enterprise.
+# This file is preserved per project no-delete policy but is not used.
 
 import logging
 from datetime import date

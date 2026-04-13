@@ -100,10 +100,15 @@ def save_report(report: HealthReport) -> None:
 
 
 # #note: Fetches all account health metrics for a seller from Intentwise-synced Postgres tables.
-# TODO: Confirm exact schema name and column names with the data team before live testing.
-# Table names below are based on Intentwise dataset names (info/IntentWise_MCP_supported_tables.csv).
-# Assumed schema: 'amazon_source_data' — update if the Postgres schema differs.
 # Each sub-query is isolated so a single table failure does not block the rest.
+# april13 waiting on confirmation - confirm exact Postgres schema name with data team.
+#   Assumed: 'amazon_source_data' — update all table references below if different.
+# april13 waiting on confirmation - confirm seller identifier column name in each table.
+#   Assumed: 'seller_id' — update WHERE clauses if column is named differently (e.g. 'account_id').
+# april13 waiting on confirmation - confirm marketplace column name in each table.
+#   Assumed: 'marketplace' — update WHERE clauses if different.
+# april13 waiting on confirmation - confirm date column name used for ORDER BY in each table.
+#   Assumed: 'date' — update ORDER BY clauses if different (e.g. 'report_date', 'sync_date').
 def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
     metrics: dict = {
         "late_shipment_rate": None,
@@ -120,7 +125,8 @@ def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
 
                 # Shipping metrics — late shipment rate, valid tracking rate, pre-cancel rate
-                # TODO: confirm column names match Intentwise schema in Postgres
+                # april13 waiting on confirmation - confirm column names: late_shipment_rate,
+                #   valid_tracking_rate, pre_fulfillment_cancel_rate exist in this table
                 try:
                     cur.execute(
                         """
@@ -140,6 +146,7 @@ def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
                     logger.warning(f"Shipping metrics query failed for {seller_id}: {e}")
 
                 # Customer service — order defect rate
+                # april13 waiting on confirmation - confirm column name: order_defect_rate exists in this table
                 try:
                     cur.execute(
                         """
@@ -157,6 +164,7 @@ def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
                     logger.warning(f"Customer service metrics query failed for {seller_id}: {e}")
 
                 # Policy compliance — food safety and IP complaints
+                # april13 waiting on confirmation - confirm column names: food_safety_count, ip_complaint_count exist in this table
                 try:
                     cur.execute(
                         """
@@ -175,6 +183,8 @@ def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
                     logger.warning(f"Policy metrics query failed for {seller_id}: {e}")
 
                 # Seller performance — account health rating
+                # april13 waiting on confirmation - confirm column name: account_health_rating_ahr_status
+                #   in this table (may be a numeric score or a status string — confirm type too)
                 try:
                     cur.execute(
                         """
@@ -194,6 +204,8 @@ def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
                     logger.warning(f"Seller performance query failed for {seller_id}: {e}")
 
                 # Account status
+                # april13 waiting on confirmation - confirm column name: account_status exists in this table
+                #   and confirm expected values (e.g. 'NORMAL', 'AT_RISK', 'DEACTIVATED')
                 try:
                     cur.execute(
                         """
