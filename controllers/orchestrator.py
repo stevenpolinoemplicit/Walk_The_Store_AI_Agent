@@ -1,4 +1,8 @@
-# orchestrator.py — main agent loop.
+# orchestrator.py — main agent loop. Gets all active accounts from Postgres, then for each one: builds the report, creates the Google Doc, routes Slack alerts, 
+# saves the report to Postgres. After all accounts: posts the ops summary. 
+# If one account fails entirely, it skips it and continues with the rest. Drive failure doesn't block Slack. 
+# Postgres save failure doesn't block Slack.
+#--- 
 # Gets all active accounts from Postgres, builds a report for each one,
 # generates a Google Doc report saved to Drive, routes Slack alerts by severity,
 # saves reports to Postgres, and posts a cross-brand ops summary.
