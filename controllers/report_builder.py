@@ -1,5 +1,7 @@
 # report_builder.py — assembles per-brand HealthReport objects and builds the cross-brand summary.
 # Coordinates data from Postgres (Intentwise-synced tables), Teamwork, and the classifier.
+# Coordinates the data gathering for one brand. Calls postgres.get_account_health_metrics(), calls teamwork.get_completed_tasks(), feeds the raw numbers into
+# classifier.classify_account(), and assembles the final HealthReport object. If Postgres or Teamwork fails, it logs the gap and continues rather than crashing.
 
 import logging
 from datetime import date
