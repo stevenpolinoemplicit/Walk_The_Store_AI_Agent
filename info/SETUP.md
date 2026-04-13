@@ -31,32 +31,20 @@ These must be resolved before any live testing. Get these from the data team and
 
 ## PART 2 — Google Service Account Setup
 
-- [ ] Go to [Google Cloud Console](https://console.cloud.google.com) → IAM → Service Accounts
-- [ ] Create a service account: `walk-the-store-sa`
-- [ ] Grant it these API scopes / roles:
-  - Google Docs API (`https://www.googleapis.com/auth/documents`)
-  - Google Drive API (`https://www.googleapis.com/auth/drive`)
-- [ ] Download the JSON key file → save locally as `sa.json` (never commit this)
-- [ ] Add `sa.json` path to your local `.env` as `GOOGLE_SERVICE_ACCOUNT_JSON=/path/to/sa.json`
+- [x] Service account: `polino-agentic-solutions-servi@polino-agentic-solutions.iam.gserviceaccount.com`
+- [x] APIs activated: Google Docs + Google Drive
+- [x] JSON key downloaded and path added to `.env`
+- [x] Brand Drive folders shared with service account (Editor)
 
 ---
 
 ## PART 3 — Fill in .env
 
-Copy `.env.example` to `.env` and fill in every key:
-
-```
-cp .env.example .env
-```
-
-- [ ] `ANTHROPIC_API_KEY` — from console.anthropic.com
-- [ ] `EMPLICIT_PG_HOST` / `EMPLICIT_PG_DB` / `EMPLICIT_PG_USER` / `EMPLICIT_PG_PASSWORD`
-- [ ] `SLACK_BOT_TOKEN` — Walk the Store Slack bot token
-- [ ] `SLACK_OPS_CHANNEL` — ops channel ID (not name — the C... ID)
-- [ ] `TEAMWORK_DOMAIN` / `TEAMWORK_API_TOKEN`
-- [ ] `GOOGLE_SERVICE_ACCOUNT_JSON` — path to `sa.json` from Part 2
-
-Run `/env-check` in Claude Code to verify all keys are set.
+- [x] `ANTHROPIC_API_KEY`
+- [x] `EMPLICIT_PG_HOST` / `EMPLICIT_PG_DB` / `EMPLICIT_PG_USER` / `EMPLICIT_PG_PASSWORD`
+- [x] `SLACK_BOT_TOKEN` / `SLACK_OPS_CHANNEL`
+- [x] `TEAMWORK_DOMAIN` / `TEAMWORK_API_TOKEN` — Teamwork Collaborator service account
+- [x] `GOOGLE_SERVICE_ACCOUNT_JSON`
 
 ---
 
