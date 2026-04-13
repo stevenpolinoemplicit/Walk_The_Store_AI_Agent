@@ -20,7 +20,7 @@ These must be resolved before any live testing. Get these from the data team and
   - `sellercentral_sellerperformance_policycompliance_report` — cols: `food_safety_count`, `ip_complaint_count`
   - `sellercentral_sellerperformance_report` — col: `account_health_rating_ahr_status`
   - `sellercentral_account_status_changed_report` — col: `account_status`
-- [x] What time does Intentwise **complete its daily sync**? → **6:45 AM PDT. Scheduler set to 7:15 AM PDT (14:15 UTC).**
+- [x] What time does Intentwise **complete its daily sync**? → **6:45 AM PDT. Scheduler set to 7:00 AM PDT (14:00 UTC).**
 - [ ] Are `drive_folder_id` values populated in `walk_the_store.account_config` for active brands?
 
 ### Boss Questions

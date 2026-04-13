@@ -106,10 +106,10 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:scheduler-invoker@$PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/run.invoker"
 
-# Intentwise sync completes by 6:45 AM PDT (confirmed). Job runs at 7:15 AM PDT = 14:15 UTC.
+# Intentwise sync completes by 6:45 AM PDT (confirmed). Job runs at 7:00 AM PDT = 14:00 UTC.
 gcloud scheduler jobs create http walk-the-store-daily \
   --location=$REGION \
-  --schedule="15 14 * * *" \
+  --schedule="0 14 * * *" \
   --uri="https://$REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/$PROJECT_ID/jobs/$JOB_NAME:run" \
   --http-method=POST \
   --oauth-service-account-email="scheduler-invoker@$PROJECT_ID.iam.gserviceaccount.com" \
@@ -117,8 +117,8 @@ gcloud scheduler jobs create http walk-the-store-daily \
   --project=$PROJECT_ID
 ```
 
-> `15 14 * * *` UTC = 7:15 AM PDT. Gives a 30-minute buffer after Intentwise completes at 6:45 AM PDT.
-> Note: PDT is UTC-7. When PDT ends (November), this becomes 6:15 AM PST — still safely after sync.
+> `0 14 * * *` UTC = 7:00 AM PDT. Gives a 15-minute buffer after Intentwise completes at 6:45 AM PDT.
+> Note: PDT is UTC-7. When PDT ends (November), this becomes 6:00 AM PST — still safely after sync.
 
 ---
 
