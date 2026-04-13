@@ -8,7 +8,7 @@ Ask the user for the following information one section at a time and wait for th
 4. **Slack channel ID** — the channel where this brand's alerts will be posted
 5. **Account manager Slack ID** — the Slack user ID of the AM who receives critical DMs
 6. **Teamwork project ID** — the Teamwork project ID for this brand
-7. **Drive folder ID** — Google Drive folder ID (optional)
+7. **Drive folder ID** — Google Drive folder ID where reports will be stored
 
 Once all answers are collected, output:
 
@@ -22,7 +22,8 @@ VALUES ('[brand]', '[seller_id]', '[marketplace]', '[slack_channel]', '[am_slack
 2. A checklist of things to verify before the brand's first run:
 - [ ] Slack bot is invited to the brand's channel
 - [ ] Teamwork project ID confirmed and accessible
-- [ ] Intentwise has data for this seller ID and marketplace
 - [ ] Account manager Slack ID is correct (DMs will go here on critical)
+- [ ] Drive folder ID is correct and service account has write access
+- [ ] Confirm Intentwise is syncing data for this seller ID to Postgres
 
 Do not execute anything — output for user review only.

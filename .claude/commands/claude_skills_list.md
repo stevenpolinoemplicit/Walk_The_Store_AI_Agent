@@ -83,10 +83,10 @@ Skills are prompts — Claude reads the command file and executes the instructio
 
 ## Integration Activation (run when credentials arrive)
 
-### `/intentwise-ready`
+### `/intentwise-ready` [DEPRECATED — Intentwise MCP integration removed]
 **File:** `.claude/commands/intentwise-ready.md`
-**Description:** Step-by-step checklist for wiring up Intentwise OAuth credentials — confirms token URL, replaces preferences YAML placeholder, validates field names against a real API response, and prepares for a single-account test run.
-**When to use:** The moment Intentwise delivers OAuth Client ID, Client Secret, and preferences YAML.
+**Description:** ~~Intentwise MCP credential wiring checklist.~~ Intentwise MCP integration removed. Data is now read directly from Postgres after Intentwise syncs it there.
+**When to use:** Do not use.
 
 ---
 

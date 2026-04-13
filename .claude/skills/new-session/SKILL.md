@@ -15,7 +15,7 @@ Read these files in order before responding:
 ## Gotchas
 
 - Read `memory.md` FIRST — it has the most recent session context. `PROJECT_SCOPE.md` has the static build plan.
-- Step 0 blockers are still open: Intentwise OAuth credentials, Emplicit Postgres dev DB, and Teamwork API token are all pending. Do not recommend steps that require these until the user confirms credentials have arrived — use `/intentwise-ready` skill for that.
+- Intentwise MCP integration has been removed — data now comes from Postgres directly. Do not reference Intentwise credentials or the `/intentwise-ready` skill.
 - `app.py` is a template artifact, not active code. The real entry point is `main.py`.
 - Skills that are explicit slash commands live in `.claude/commands/`. Semantic skills live in `.claude/skills/` as directories with `SKILL.md`.
 

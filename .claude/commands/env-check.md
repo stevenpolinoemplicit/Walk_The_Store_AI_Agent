@@ -10,13 +10,12 @@ Output a table:
 | Key | Status |
 |---|---|
 | ANTHROPIC_API_KEY | ✅ Set |
-| INTENTWISE_CLIENT_ID | ❌ Missing |
+| EMPLICIT_PG_HOST | ❌ Missing |
 | ... | ... |
 
 Then output:
 - **Ready to run:** Yes / No
 - **Missing keys:** list any that are empty or absent
-- **Blocked keys:** note any that are intentionally pending (e.g. INTENTWISE_CLIENT_ID/SECRET) per PROJECT_SCOPE.md blockers
 
 Never print the actual values — only confirm present/missing.
 If `.env` does not exist at all, instruct the user to run: `cp .env.example .env` and fill in values.

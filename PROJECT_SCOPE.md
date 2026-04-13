@@ -38,7 +38,7 @@ Inventory health, inbound/shipment status, performance notifications, case log r
 | Language | Python 3.11+ |
 | Agent Framework | Anthropic Python SDK (`anthropic`) |
 | LLM | Claude Sonnet |
-| Amazon Data | Intentwise MCP Server (`https://mcp.intentwise.com/mcp`) via OAuth |
+| Amazon Data | Emplicit Postgres — Intentwise-synced tables (`amazon_source_data` schema) |
 | Operational Data | Emplicit PostgreSQL (`psycopg2`) |
 | Task Tracking | Teamwork API via `httpx` (read-only) |
 | Alerts | Slack (`slack_sdk`) |
@@ -71,7 +71,7 @@ walk-the-store/
 ├── config/
 │   ├── settings.py               # Environment config loader
 │   ├── thresholds.py             # Severity threshold definitions
-│   └── intentwise_preferences.yaml  # From Intentwise (when received)
+│   └── intentwise_preferences.yaml  # DEPRECATED — preserved per no-delete policy
 │
 ├── models/
 │   ├── account.py                # AccountConfig pydantic model
@@ -88,7 +88,7 @@ walk-the-store/
 │   └── dashboard.py              # Gradio UI (manual trigger + view reports)
 │
 ├── tools/
-│   ├── intentwise_mcp.py         # Intentwise MCP client (OAuth + queries)
+│   ├── intentwise_mcp.py         # DEPRECATED — preserved per no-delete policy
 │   ├── postgres.py               # Emplicit Postgres read/write
 │   ├── teamwork.py               # Teamwork API client (read-only)
 │   ├── slack_alerts.py           # Slack channel posts + DMs
@@ -108,7 +108,7 @@ walk-the-store/
 1. main.py triggers (cron or Gradio button)
 2. orchestrator.py gets active accounts from Emplicit Postgres
 3. For each account:
-   a. Query Intentwise MCP for account health data
+   a. Query Postgres (Intentwise-synced tables) for account health data
    b. Query Teamwork for completed tasks per brand
    c. Classify each metric via classifier.py
    d. Build report via report_builder.py
@@ -122,27 +122,30 @@ walk-the-store/
 
 ## Data Sources
 
-### Intentwise MCP — Amazon Account Health
+### Emplicit Postgres — Amazon Account Health (Intentwise-synced)
 
-Server URL: `https://mcp.intentwise.com/mcp`
-Auth: OAuth (client_credentials grant — pending confirmation)
-Status: Access requested. Awaiting OAuth Client ID, credentials, and preferences YAML.
+Intentwise syncs Amazon Seller Central data directly into Emplicit Postgres.
+All account health metrics are read from these tables — no direct Intentwise API calls.
 
-| Check | Intentwise Table |
+**TODO: Confirm schema name and exact column names with data team before live testing.**
+Assumed schema: `amazon_source_data` (based on Intentwise dataset names).
+
+| Check | Postgres Table |
 |---|---|
-| Shipping Metrics | `sellercentral_sellerperformance_shippingperformance_report` |
-| Policy Compliance | `sellercentral_sellerperformance_policycompliance_report` |
-| Customer Service (ODR, A-to-Z) | `sellercentral_sellerperformance_customerserviceperformance_report` |
-| Seller Performance | `sellercentral_sellerperformance_report` |
-| Customer Feedback | `sellercentral_flatfilefeedback_report` |
-| Account Status Alerts | `sellercentral_account_status_changed_report` |
+| Shipping Metrics | `amazon_source_data.sellercentral_sellerperformance_shippingperformance_report` |
+| Policy Compliance | `amazon_source_data.sellercentral_sellerperformance_policycompliance_report` |
+| Customer Service (ODR) | `amazon_source_data.sellercentral_sellerperformance_customerserviceperformance_report` |
+| Seller Performance (AHR) | `amazon_source_data.sellercentral_sellerperformance_report` |
+| Account Status | `amazon_source_data.sellercentral_account_status_changed_report` |
 
-Key fields:
+Key fields (confirm against actual Postgres schema):
 - `account_health_rating_ahr_status` — AHR score/status
-- `order_defect_rate_afn_claims_status` / `_count` — A-to-Z FBA claims
-- `order_defect_rate_mfn_claims_status` / `_count` — A-to-Z merchant fulfilled claims
+- `late_shipment_rate`, `valid_tracking_rate`, `pre_fulfillment_cancel_rate`
+- `order_defect_rate`
+- `food_safety_count`, `ip_complaint_count`
+- `account_status`
 
-### Emplicit Postgres
+### Emplicit Postgres — Walk the Store Schema
 
 | Table | Purpose |
 |---|---|
@@ -192,11 +195,6 @@ Daily summary always posts to ops channel regardless of severity.
 # Anthropic
 ANTHROPIC_API_KEY=
 
-# Intentwise MCP
-INTENTWISE_CLIENT_ID=
-INTENTWISE_CLIENT_SECRET=
-INTENTWISE_MCP_URL=https://mcp.intentwise.com/mcp
-
 # Emplicit Postgres
 EMPLICIT_PG_HOST=
 EMPLICIT_PG_PORT=5432
@@ -219,10 +217,10 @@ TEAMWORK_API_TOKEN=
 
 Complete each step before moving to the next. Per CLAUDE.md, ask permission before every action.
 
-### Step 0: Prerequisites (BLOCKED until credentials received)
-- [ ] Intentwise MCP OAuth credentials
-- [ ] Confirm headless OAuth supported
-- [ ] Emplicit Postgres dev/test database
+### Step 0: Prerequisites
+- [ ] Confirm Postgres schema name for Intentwise-synced tables (`amazon_source_data`?)
+- [ ] Confirm exact column names in each Intentwise-synced table
+- [ ] Emplicit Postgres dev/test database connection details
 - [ ] Teamwork API token
 
 ### Step 1: Project Setup
@@ -239,8 +237,7 @@ Complete each step before moving to the next. Per CLAUDE.md, ask permission befo
 - [ ] `report.py` — HealthReport (all metrics + findings + metadata)
 
 ### Step 3: Tool Layer (`/tools`) — test each independently
-- [ ] `postgres.py` — connect, get active accounts, save report
-- [ ] `intentwise_mcp.py` — OAuth, connect to MCP, test query
+- [ ] `postgres.py` — connect, get active accounts, get health metrics, save report
 - [ ] `teamwork.py` — HTTP client, get tasks by project ID
 - [ ] `slack_alerts.py` — post to channel, DM user
 
@@ -290,8 +287,8 @@ Complete each step before moving to the next. Per CLAUDE.md, ask permission befo
 
 ## Error Handling Rules
 
-- Intentwise MCP unreachable → log error, skip account, note in report
-- Specific metric query fails → log gap, classify as "unknown", continue
+- Postgres health metric query fails → log gap per metric, classify as "unknown", continue
+- Specific metric column missing → log gap, treat as None, continue
 - Postgres write fails → log error, still send Slack alert
 - Slack fails → log error, still save to Postgres
 - Never crash the entire run for one account or one metric
@@ -303,9 +300,9 @@ Complete each step before moving to the next. Per CLAUDE.md, ask permission befo
 
 | Blocker | Owner | Status |
 |---|---|---|
-| Intentwise MCP access (OAuth Client ID, credentials, YAML) | Steven → Intentwise | Requested |
-| Confirm OAuth supports client_credentials (headless) | Steven → Intentwise | Requested |
-| Emplicit Postgres dev/test database | Steven → Data Team | Open |
+| Confirm Postgres schema name for Intentwise-synced tables | Steven → Data Team | Open |
+| Confirm column names in each Intentwise-synced table | Steven → Data Team | Open |
+| Emplicit Postgres dev/test database connection details | Steven → Data Team | Open |
 | Teamwork API token with read access | Steven → Boss | Open |
 | Confirm `walk_the_store.account_config` still active | Steven → Boss | Open |
 

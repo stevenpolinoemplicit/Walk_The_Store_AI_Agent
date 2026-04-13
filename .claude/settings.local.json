@@ -21,7 +21,8 @@
       "WebFetch(domain:docs.cloud.google.com)",
       "WebFetch(domain:github.com)",
       "Bash(python:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(ls:*)"
     ]
   }
 }

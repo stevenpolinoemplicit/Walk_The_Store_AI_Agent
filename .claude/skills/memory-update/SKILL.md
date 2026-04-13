@@ -13,7 +13,7 @@ Update `memory.md` with a new session log entry covering what happened this sess
 
 - New entries go at the **top** of `## Session Log` — reverse chronological order, newest first. Never append to the bottom.
 - Never delete or overwrite existing log entries.
-- Intentwise credentials are still pending — if work was blocked on these, log them as open todos.
+- Intentwise MCP integration has been removed — data is now read directly from Postgres. Do not log Intentwise credentials as a blocker.
 - Session numbers increment from the last entry in memory.md — read it first to get the current count.
 - After writing, remind the user to run `git add memory.md` and commit it separately with message `docs: update session log`.
 

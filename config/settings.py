@@ -15,14 +15,6 @@ logger = logging.getLogger(__name__)
 # #note: Anthropic API key for authenticating Claude SDK calls
 ANTHROPIC_API_KEY: str = os.environ["ANTHROPIC_API_KEY"]
 
-# --- Intentwise MCP ---
-# #note: OAuth credentials and MCP server URL for Intentwise Amazon data queries
-INTENTWISE_CLIENT_ID: str = os.environ["INTENTWISE_CLIENT_ID"]
-INTENTWISE_CLIENT_SECRET: str = os.environ["INTENTWISE_CLIENT_SECRET"]
-INTENTWISE_MCP_URL: str = os.environ.get(
-    "INTENTWISE_MCP_URL", "https://mcp.intentwise.com/mcp"
-)
-
 # --- Emplicit Postgres ---
 # #note: Connection parameters for the Emplicit PostgreSQL database
 EMPLICIT_PG_HOST: str = os.environ["EMPLICIT_PG_HOST"]

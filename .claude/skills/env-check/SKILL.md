@@ -11,7 +11,6 @@ Check all required environment variables against `.env.example` without revealin
 
 ## Gotchas
 
-- `INTENTWISE_CLIENT_ID` and `INTENTWISE_CLIENT_SECRET` are blocked pending delivery from Intentwise — flag as "Pending (blocked)" not "Missing".
 - If `.env` does not exist at all, instruct: `cp .env.example .env` then fill in values. Do not attempt to create it automatically.
 - Never print actual values — presence check only.
 
@@ -26,10 +25,8 @@ Check all required environment variables against `.env.example` without revealin
 | Key | Status |
 |---|---|
 | ANTHROPIC_API_KEY | ✅ Set |
-| INTENTWISE_CLIENT_ID | 🔲 Pending (blocked — awaiting Intentwise delivery) |
 | EMPLICIT_PG_HOST | ❌ Missing |
 
 Then:
 - **Ready to run:** Yes / No
-- **Missing keys:** list any that are empty and not intentionally pending
-- **Pending keys:** list intentionally blocked ones separately so they don't alarm the user
+- **Missing keys:** list any that are empty or absent

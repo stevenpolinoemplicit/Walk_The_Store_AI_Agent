@@ -1,6 +1,6 @@
 # postgres.py — Emplicit PostgreSQL client.
-# Provides two operations: fetch active accounts from account_config, save a report to daily_health_reports.
-# All connection params come from config/settings.py — never hardcoded here.
+# Provides: fetch active accounts, fetch account health metrics from Intentwise-synced tables,
+# and save completed reports. All connection params come from config/settings.py — never hardcoded here.
 
 import json
 import logging
@@ -97,3 +97,121 @@ def save_report(report: HealthReport) -> None:
     except Exception as e:
         logger.error(f"Failed to save report for {report.brand_name}: {e}")
         raise
+
+
+# #note: Fetches all account health metrics for a seller from Intentwise-synced Postgres tables.
+# TODO: Confirm exact schema name and column names with the data team before live testing.
+# Table names below are based on Intentwise dataset names (info/IntentWise_MCP_supported_tables.csv).
+# Assumed schema: 'amazon_source_data' — update if the Postgres schema differs.
+# Each sub-query is isolated so a single table failure does not block the rest.
+def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
+    metrics: dict = {
+        "late_shipment_rate": None,
+        "valid_tracking_rate": None,
+        "pre_cancel_rate": None,
+        "order_defect_rate": None,
+        "account_health_rating": None,
+        "food_safety_count": None,
+        "ip_complaint_count": None,
+        "account_status": None,
+    }
+    try:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+
+                # Shipping metrics — late shipment rate, valid tracking rate, pre-cancel rate
+                # TODO: confirm column names match Intentwise schema in Postgres
+                try:
+                    cur.execute(
+                        """
+                        SELECT late_shipment_rate, valid_tracking_rate, pre_fulfillment_cancel_rate
+                        FROM amazon_source_data.sellercentral_sellerperformance_shippingperformance_report
+                        WHERE seller_id = %s AND marketplace = %s
+                        ORDER BY date DESC LIMIT 1
+                        """,
+                        (seller_id, marketplace),
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        metrics["late_shipment_rate"] = row.get("late_shipment_rate")
+                        metrics["valid_tracking_rate"] = row.get("valid_tracking_rate")
+                        metrics["pre_cancel_rate"] = row.get("pre_fulfillment_cancel_rate")
+                except Exception as e:
+                    logger.warning(f"Shipping metrics query failed for {seller_id}: {e}")
+
+                # Customer service — order defect rate
+                try:
+                    cur.execute(
+                        """
+                        SELECT order_defect_rate
+                        FROM amazon_source_data.sellercentral_sellerperformance_customerserviceperformance_report
+                        WHERE seller_id = %s AND marketplace = %s
+                        ORDER BY date DESC LIMIT 1
+                        """,
+                        (seller_id, marketplace),
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        metrics["order_defect_rate"] = row.get("order_defect_rate")
+                except Exception as e:
+                    logger.warning(f"Customer service metrics query failed for {seller_id}: {e}")
+
+                # Policy compliance — food safety and IP complaints
+                try:
+                    cur.execute(
+                        """
+                        SELECT food_safety_count, ip_complaint_count
+                        FROM amazon_source_data.sellercentral_sellerperformance_policycompliance_report
+                        WHERE seller_id = %s AND marketplace = %s
+                        ORDER BY date DESC LIMIT 1
+                        """,
+                        (seller_id, marketplace),
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        metrics["food_safety_count"] = row.get("food_safety_count")
+                        metrics["ip_complaint_count"] = row.get("ip_complaint_count")
+                except Exception as e:
+                    logger.warning(f"Policy metrics query failed for {seller_id}: {e}")
+
+                # Seller performance — account health rating
+                try:
+                    cur.execute(
+                        """
+                        SELECT account_health_rating_ahr_status
+                        FROM amazon_source_data.sellercentral_sellerperformance_report
+                        WHERE seller_id = %s AND marketplace = %s
+                        ORDER BY date DESC LIMIT 1
+                        """,
+                        (seller_id, marketplace),
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        metrics["account_health_rating"] = row.get(
+                            "account_health_rating_ahr_status"
+                        )
+                except Exception as e:
+                    logger.warning(f"Seller performance query failed for {seller_id}: {e}")
+
+                # Account status
+                try:
+                    cur.execute(
+                        """
+                        SELECT account_status
+                        FROM amazon_source_data.sellercentral_account_status_changed_report
+                        WHERE seller_id = %s AND marketplace = %s
+                        ORDER BY date DESC LIMIT 1
+                        """,
+                        (seller_id, marketplace),
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        metrics["account_status"] = row.get("account_status")
+                except Exception as e:
+                    logger.warning(f"Account status query failed for {seller_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"get_account_health_metrics connection failed for {seller_id}: {e}")
+        raise
+
+    return metrics

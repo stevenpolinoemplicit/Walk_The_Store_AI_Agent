@@ -1,5 +1,5 @@
 # report_builder.py — assembles per-brand HealthReport objects and builds the cross-brand summary.
-# Coordinates data from Intentwise, Teamwork, and the classifier into a single report.
+# Coordinates data from Postgres (Intentwise-synced tables), Teamwork, and the classifier.
 
 import logging
 from datetime import date
@@ -8,12 +8,12 @@ from typing import List, Optional
 from controllers.classifier import classify_account
 from models.account import AccountConfig
 from models.report import HealthReport
-from tools import intentwise_mcp, teamwork
+from tools import postgres, teamwork
 
 logger = logging.getLogger(__name__)
 
 
-# #note: Safely extracts a float metric from an Intentwise response dict; logs and returns None on failure
+# #note: Safely extracts a float metric from a dict; logs and returns None on failure
 def _safe_float(data: dict, key: str, brand: str) -> Optional[float]:
     try:
         val = data.get(key)
@@ -23,7 +23,7 @@ def _safe_float(data: dict, key: str, brand: str) -> Optional[float]:
         return None
 
 
-# #note: Safely extracts an int metric from an Intentwise response dict; logs and returns None on failure
+# #note: Safely extracts an int metric from a dict; logs and returns None on failure
 def _safe_int(data: dict, key: str, brand: str) -> Optional[int]:
     try:
         val = data.get(key)
@@ -33,62 +33,22 @@ def _safe_int(data: dict, key: str, brand: str) -> Optional[int]:
         return None
 
 
-# #note: Builds a complete HealthReport for one brand — fetches all data, handles per-source failures
+# #note: Builds a complete HealthReport for one brand — reads metrics from Postgres, handles failures
 def build_brand_report(account: AccountConfig) -> HealthReport:
     brand = account.brand_name
     data_gaps: list[str] = []
 
-    # --- Intentwise: shipping metrics ---
-    shipping: dict = {}
+    # Fetch all health metrics from Intentwise-synced Postgres tables
+    metrics_raw: dict = {}
     try:
-        shipping = intentwise_mcp.get_shipping_performance(
+        metrics_raw = postgres.get_account_health_metrics(
             account.seller_id, account.marketplace
         )
     except Exception:
-        logger.warning(f"[{brand}] Shipping data unavailable — logged as gap")
-        data_gaps.append("shipping_performance")
+        logger.warning(f"[{brand}] Health metrics unavailable — logged as gap")
+        data_gaps.append("account_health_metrics")
 
-    # --- Intentwise: customer service / ODR ---
-    cs: dict = {}
-    try:
-        cs = intentwise_mcp.get_customer_service_performance(
-            account.seller_id, account.marketplace
-        )
-    except Exception:
-        logger.warning(f"[{brand}] Customer service data unavailable — logged as gap")
-        data_gaps.append("customer_service_performance")
-
-    # --- Intentwise: policy compliance ---
-    policy: dict = {}
-    try:
-        policy = intentwise_mcp.get_policy_compliance(
-            account.seller_id, account.marketplace
-        )
-    except Exception:
-        logger.warning(f"[{brand}] Policy compliance data unavailable — logged as gap")
-        data_gaps.append("policy_compliance")
-
-    # --- Intentwise: account status ---
-    status_data: dict = {}
-    try:
-        status_data = intentwise_mcp.get_account_status(
-            account.seller_id, account.marketplace
-        )
-    except Exception:
-        logger.warning(f"[{brand}] Account status data unavailable — logged as gap")
-        data_gaps.append("account_status")
-
-    # --- Intentwise: seller performance (AHR) ---
-    perf: dict = {}
-    try:
-        perf = intentwise_mcp.get_seller_performance(
-            account.seller_id, account.marketplace
-        )
-    except Exception:
-        logger.warning(f"[{brand}] Seller performance data unavailable — logged as gap")
-        data_gaps.append("seller_performance")
-
-    # --- Teamwork: completed tasks ---
+    # Teamwork: completed tasks
     completed_tasks: list[dict] = []
     try:
         completed_tasks = teamwork.get_completed_tasks(account.teamwork_project_id)
@@ -99,23 +59,19 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
     # Brand context not implemented in v1
     brand_ctx: Optional[str] = None
 
-    # --- Assemble raw metrics dict for classifier ---
+    # Assemble raw metrics dict for classifier
     metrics = {
-        "late_shipment_rate": _safe_float(shipping, "late_shipment_rate", brand),
-        "valid_tracking_rate": _safe_float(shipping, "valid_tracking_rate", brand),
-        "pre_cancel_rate": _safe_float(
-            shipping, "pre_fulfillment_cancel_rate", brand
-        ),
-        "order_defect_rate": _safe_float(cs, "order_defect_rate", brand),
-        "account_health_rating": _safe_int(
-            perf, "account_health_rating_ahr_status", brand
-        ),
-        "food_safety_count": _safe_int(policy, "food_safety_count", brand),
-        "ip_complaint_count": _safe_int(policy, "ip_complaint_count", brand),
-        "account_status": status_data.get("account_status"),
+        "late_shipment_rate": _safe_float(metrics_raw, "late_shipment_rate", brand),
+        "valid_tracking_rate": _safe_float(metrics_raw, "valid_tracking_rate", brand),
+        "pre_cancel_rate": _safe_float(metrics_raw, "pre_cancel_rate", brand),
+        "order_defect_rate": _safe_float(metrics_raw, "order_defect_rate", brand),
+        "account_health_rating": _safe_int(metrics_raw, "account_health_rating", brand),
+        "food_safety_count": _safe_int(metrics_raw, "food_safety_count", brand),
+        "ip_complaint_count": _safe_int(metrics_raw, "ip_complaint_count", brand),
+        "account_status": metrics_raw.get("account_status"),
     }
 
-    # --- Classify ---
+    # Classify
     findings, highest_severity = classify_account(metrics)
 
     return HealthReport(
