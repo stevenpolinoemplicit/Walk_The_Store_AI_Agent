@@ -10,7 +10,7 @@
 These must be resolved before any live testing. Get these from the data team and boss today.
 
 ### Data Team Questions (Postgres)
-- [ ] What is the exact Postgres **schema name** for Intentwise-synced tables? (assumed: `amazon_source_data`)
+- [x] What is the exact Postgres **schema name** for Intentwise-synced tables? → **`amazon_source_data`** (confirmed; also `amazon_marketing_cloud` exists but not used here)
 - [ ] What is the **seller identifier column** name in each table? (assumed: `seller_id`)
 - [ ] What is the **marketplace column** name in each table? (assumed: `marketplace`)
 - [ ] What is the **date column** name used for `ORDER BY` in each table? (assumed: `date`)
@@ -23,9 +23,9 @@ These must be resolved before any live testing. Get these from the data team and
 - [x] What time does Intentwise **complete its daily sync**? → **6:45 AM PDT. Scheduler set to 7:00 AM PDT (14:00 UTC).**
 - [ ] Are `drive_folder_id` values populated in `walk_the_store.account_config` for active brands?
 
-### Boss Questions
+### Gilbert Questions
 - [ ] Confirm `walk_the_store.account_config` table is active and has at least 1 test brand row
-- [ ] What is the Emplicit **Google Workspace domain**? (e.g. `emplicit.com` — needed for Drive sharing)
+- [x] What is the Emplicit **Google Workspace domain**? → **`emplicit.co`** (confirmed)
 
 ---
 
