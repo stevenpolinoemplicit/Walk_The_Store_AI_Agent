@@ -1,54 +1,97 @@
-# Walk the Store — New POC Build Plan (Final)
+# Walk the Store — POC Build Plan (Final)
 ### April 13–14, 2026
+### Last updated: April 13, 2026 — Session 7
 
 ---
 
-## Context
+## What This POC Delivers
 
-The existing codebase (Steps 1–8 complete per PROJECT_SCOPE.md) was blocked on IntentWise OAuth credentials. This POC pivots in four ways:
-
-1. **Data source**: Postgres only — IntentWise data lands there first; no direct IntentWise calls in POC
-2. **Notification trigger**: Postgres LISTEN/NOTIFY fires the orchestrator when new data lands
-3. **Output**: Agent generates a formal Google Doc report (matching example PDF format), stores it in the brand's Drive folder, sends a Slack notification with a link to it
-4. **Chat**: Claude Enterprise (already active at Emplicit) handles interactive chat — Drive connector reads stored reports and company docs automatically. No custom bot needed.
+Daily automated Amazon account health reports for all active Emplicit brands:
+1. **Cloud Scheduler** fires at 7:00 AM PDT (15 min after Intentwise finishes syncing at 6:45 AM PDT)
+2. **Cloud Run Job** spins up, runs `python main.py`, exits
+3. Agent reads health metrics from **Intentwise-synced Postgres tables** (`amazon_source_data`)
+4. Classifies each metric: 🔴 Critical / 🟡 Warning / 🟢 Healthy
+5. Creates a **Google Doc** per brand matching the example PDF format — saved to the brand's Drive folder
+6. Posts a **Slack notification** with severity summary + link to the Drive doc
+7. **Ask Emplicit** (Claude Enterprise, already connected to Drive) answers employee questions automatically
 
 ---
 
-## What the Example PDF Shows (Report Format to Replicate)
+## Architecture
+
+```
+Cloud Scheduler (7:00 AM PDT daily, cron: 0 14 * * *)
+  → triggers Cloud Run Job
+  → python main.py
+        ↓
+  orchestrator.py
+  → postgres.get_active_accounts()        ← walk_the_store.account_config
+  → for each brand:
+      postgres.get_account_health_metrics() ← amazon_source_data (5 tables)
+      teamwork.get_completed_tasks()        ← read-only
+      classifier.classify_account()
+      report_builder.build_brand_report()
+      report_generator.create_report()     ← Google Doc → brand's Drive folder
+      slack_alerts.post_to_channel()       ← brief notification + Drive link
+      slack_alerts.send_dm()               ← AM only, critical severity
+      postgres.save_report()               ← walk_the_store.daily_health_reports
+  → build_ops_summary() → post_ops_summary()
+  → exit
+
+CHAT (zero setup required)
+  Ask Emplicit (Claude Enterprise) already connected to Google Drive
+  → employees ask questions → Claude reads Drive reports automatically
+```
+
+---
+
+## Hosting
+
+**Cloud Run Jobs + Cloud Scheduler**
+- Jobs: container runs to completion and exits — no port, no health check, no persistent connection
+- Scheduler: `0 14 * * *` UTC = 7:00 AM PDT
+- Cost: essentially free (pay for ~60 seconds of execution once per day)
+- No `min-instances` needed — stateless batch job
+
+---
+
+## Report Format
+
+Matches `info/Walk the Store Example Output.pdf` exactly:
 
 ```
 EMPLICIT — Amazon Account Health Report
 Account: [Brand Name]          Report Date: [YYYY-MM-DD]
-─────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────
 Executive Summary
 Overall Status: 🔴 CRITICAL
-🔴 2 Critical Issues   🟡 1 Warning
+🔴 N Critical Issues   🟡 N Warning(s)
 
 Key Findings
-  - 🔴 Stranded inventory valued at $2,948 (1 SKU, 22 units)
-  - 🔴 FOOD/PRODUCT SAFETY: 1 food safety issue, 1 product safety issue
-  - 🟡 4 unfulfillable units across 2 SKUs
+  - 🔴 [finding message]
+  - 🟡 [finding message]
 
 Key Metrics
-  Metric                    Value       Status
-  Stranded SKUs             1           🔴 Critical
-  Stranded Value            $2,948.00   🔴 Critical
-  Aged Inventory (365+ d)   0 units     🟢 OK
-  Unfulfillable Units       4           🟡 Warning
-  Late Shipment Rate        0.00%       🟢 OK
-  Valid Tracking Rate       0.00%       🟢 OK
-  Policy Compliance         GREAT       🔴 Critical
-  Negative Feedback Rate    0.0%        🟢 OK
+  Metric                              Value                Status
+  ─────────────────────────────────────────────────────────────
+  Late Shipment Rate                  0.00%                🟢 HEALTHY
+  Valid Tracking Rate                 0.00%                🟢 HEALTHY
+  Pre-fulfillment Cancel Rate         0.00%                🟢 HEALTHY
+  Order Defect Rate (ODR)             0.00%                🟢 HEALTHY
+  Account Health Rating               350                  🟢 HEALTHY
+  Account Status                      NORMAL               🟢 HEALTHY
+  Food/Product Safety                 0                    🟢 HEALTHY
+  IP Complaints                       0                    🟢 HEALTHY
 
 Detailed Findings
-  Inventory Health
-    - 🔴 STRANDED: Stranded inventory valued at $2,948 (1 SKU, 22 units)
-    - 🟡 UNFULFILLABLE: 4 unfulfillable units across 2 SKUs
+  Shipping Performance
+    - 🟢 ...
   Account Health
-    - 🔴 FOOD SAFETY: 1 food safety issue, 1 product safety issue
-  Customer Feedback
-    - 🟢 HEALTHY: 0 feedbacks in last 30 days, none negative
+    - 🔴 ...
+  Customer Service
+    - 🟢 ...
 
+────────────────────────────────────────────────────────────
 This report was automatically generated by Emplicit Walk the Store on [timestamp].
 Data sourced from Amazon Seller Central via Intentwise.
 For questions, contact your Emplicit account manager.
@@ -56,323 +99,121 @@ For questions, contact your Emplicit account manager.
 
 ---
 
-## Architecture Overview
+## Confirmed Facts
 
-```
-NOTIFICATION PIPELINE (custom — Cloud Run)
-  IntentWise pipeline
-  → writes data to Postgres (walk_the_store schema)
-  → Postgres trigger: pg_notify('wts_data_ready', report_date)
-  → pg_listener.py wakes up (asyncpg LISTEN)
-  → asyncio.to_thread(run_agent)     <- existing sync orchestrator
-        |
-  classifier -> report_builder       <- existing, unchanged
-        |
-  report_generator.py                <- NEW: creates Google Doc
-  → formats report matching example PDF
-  → saves to AccountConfig.drive_folder_id (per-brand Drive folder)
-  → returns shareable Drive URL
-        |
-  slack_alerts.py                    <- MODIFIED: sends link + summary
-  → Slack channel: "🔴 Brand X — CRITICAL | View Report: [url]"
-  → DM to AM on critical (existing routing logic retained)
-        |
-  postgres.save_report()             <- existing, unchanged
-
-CHAT + KNOWLEDGE (Claude Enterprise — no custom code)
-  Employee opens claude.ai → "Walk the Store" Project
-  → Drive connector reads stored reports + company docs automatically
-  → "What was Brand X's status today?" → reads today's Drive report
-  → "How do we handle food safety issues?" → reads SOPs in Drive
-```
+| Item | Value | Confirmed |
+|------|-------|-----------|
+| Intentwise sync completes | 6:45 AM PDT | ✅ |
+| Scheduler time | 7:00 AM PDT (14:00 UTC) | ✅ |
+| Postgres schema | `amazon_source_data` | ✅ |
+| Table insert pattern | Append-only (new rows daily) | ✅ |
+| Query pattern | `ORDER BY date DESC LIMIT 1` | ✅ |
+| Emplicit domain | `emplicit.co` | ✅ |
+| Google service account | `polino-agentic-solutions-servi@polino-agentic-solutions.iam.gserviceaccount.com` | ✅ |
+| Ask Emplicit → Drive connected | Yes — zero chat setup needed | ✅ |
+| Teamwork auth | Collaborator service account | ✅ |
 
 ---
 
-## Hosting Decision
+## Still Waiting On
 
-**Cloud Run** — required for persistent Postgres LISTEN/NOTIFY connection (min-instances:1).
-Anthropic Managed Agents are stateless — cannot hold a persistent listener.
-Claude Enterprise handles all chat — no custom bot needed.
-
----
-
-## Critical Findings from Code Exploration
-
-| Finding | Resolution |
-|---------|------------|
-| run_agent() is synchronous | asyncio.to_thread(run_agent) — no orchestrator refactor |
-| psycopg2 is synchronous | Keep for all queries; asyncpg only for LISTEN connection |
-| AccountConfig.drive_folder_id already exists | Drive report saves directly to per-brand folder |
-| No Dockerfile exists | Create from scratch |
-| SLACK_BOT_TOKEN already used for alerts | Unchanged — no second token needed (no custom bot) |
+| Item | Owner | Needed for |
+|------|-------|------------|
+| Postgres column names (seller_id col, marketplace col, date col, 8 metric cols) | Steven → Data team | `tools/postgres.py` |
+| `walk_the_store.account_config` active + populated | Steven → Gilbert | Any accounts to process |
+| Brand Drive folder IDs in `account_config` | Steven → Gilbert | `report_generator.py` folder targeting |
 
 ---
 
-## Files to Create
+## Files — Current State
 
+### Active (in use)
 | File | Purpose |
 |------|---------|
-| tools/pg_listener.py | asyncpg LISTEN — asyncio.to_thread(run_agent) on notify |
-| tools/report_generator.py | Creates Google Doc matching example PDF, saves to Drive, returns URL |
-| Dockerfile | Python 3.13-slim, port 8080 |
-| docs/pg_trigger_setup.sql | Postgres trigger SQL — documented only, run manually by ops |
-| docs/CLOUD_RUN_DEPLOY.md | Manual Cloud Run deploy guide |
-| docs/CLAUDE_ENTERPRISE_SETUP.md | How to create the Walk the Store Project in claude.ai |
+| `main.py` | Entry point — calls `run_agent()` and exits |
+| `Dockerfile` | Python 3.13-slim, no port, `CMD python main.py` |
+| `config/settings.py` | All env vars including `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| `config/thresholds.py` | Severity cutoffs (Amazon benchmark values) |
+| `models/account.py` | AccountConfig — matches `walk_the_store.account_config` |
+| `models/findings.py` | Finding — one classified metric result |
+| `models/report.py` | HealthReport — full brand snapshot |
+| `controllers/classifier.py` | 8 metric classifiers + severity roll-up |
+| `controllers/report_builder.py` | Assembles HealthReport from Postgres + Teamwork + classifier |
+| `controllers/orchestrator.py` | Main loop — accounts → report → Drive → Slack → Postgres |
+| `tools/postgres.py` | get_active_accounts, get_account_health_metrics, save_report |
+| `tools/report_generator.py` | Creates Google Doc, saves to Drive folder, returns URL |
+| `tools/teamwork.py` | Read-only Teamwork task fetch |
+| `tools/slack_alerts.py` | post_to_channel, send_dm, post_ops_summary |
+| `views/slack_formatter.py` | format_notification (POC) + format_brand_report (legacy) |
+| `docs/CLOUD_RUN_DEPLOY.md` | Full Cloud Run Jobs + Cloud Scheduler deploy guide |
+| `docs/CLAUDE_ENTERPRISE_SETUP.md` | Ask Emplicit + Drive — confirms zero setup needed |
 
-## Files Modified
-
-| File | Change |
-|------|--------|
-| main.py | Add --mode flag; add port-8080 health check |
-| controllers/orchestrator.py | Call report_generator.create_report() after builder; pass Drive URL to alerts |
-| views/slack_formatter.py | Add format_notification(report, drive_url) — brief message + Drive link |
-| tools/slack_alerts.py | Pass drive_url through to channel post and DM |
-| requirements.txt | Add: asyncpg, google-api-python-client, google-auth, google-auth-httplib2 |
-| .env.example | Add: GOOGLE_SERVICE_ACCOUNT_JSON |
-| config/settings.py | Load new env var |
-
-## Files Reused Unchanged
-
-controllers/classifier.py, controllers/report_builder.py, tools/postgres.py,
-all models/, config/thresholds.py
+### Deprecated (preserved per no-delete policy)
+| File | Reason deprecated |
+|------|------------------|
+| `tools/pg_listener.py` | LISTEN/NOTIFY replaced by Cloud Scheduler |
+| `docs/pg_trigger_setup.sql` | Trigger not needed with Cloud Scheduler |
+| `tools/intentwise_mcp.py` | Direct IntentWise API calls replaced by Postgres reads |
+| `tools/notebooklm.py` | Brand context out of scope for POC and v1 |
+| `views/dashboard.py` | Gradio UI replaced by Ask Emplicit + `python main.py` |
 
 ---
 
-## Day 1 (April 13) — Listener + Report Generator
+## Environment Variables
 
-### Step 1: Postgres LISTEN/NOTIFY — tools/pg_listener.py (1.5 hrs)
-
-- asyncpg connect → LISTEN wts_data_ready
-- On notify: asyncio.to_thread(run_agent)
-- Exponential backoff reconnect (2/4/8/16/32s, 5 retries max)
-- Log every notify event and reconnect
-
-docs/pg_trigger_setup.sql (ops runs manually — never automated by Claude):
-
-```sql
-CREATE OR REPLACE FUNCTION notify_wts_data_ready()
-RETURNS trigger AS $$
-BEGIN
-  PERFORM pg_notify('wts_data_ready', NEW.report_date::text);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER wts_data_ready_trigger
-AFTER INSERT ON walk_the_store.<intentwise_table_name>
-FOR EACH ROW EXECUTE FUNCTION notify_wts_data_ready();
+```
+ANTHROPIC_API_KEY=          ✅ set
+EMPLICIT_PG_HOST=           ✅ set
+EMPLICIT_PG_PORT=5432       ✅ set
+EMPLICIT_PG_DB=             ✅ set
+EMPLICIT_PG_USER=           ✅ set
+EMPLICIT_PG_PASSWORD=       ✅ set
+SLACK_BOT_TOKEN=            ✅ set
+SLACK_OPS_CHANNEL=          ✅ set
+TEAMWORK_DOMAIN=            ✅ set
+TEAMWORK_API_TOKEN=         ✅ set (Collaborator service account)
+GOOGLE_SERVICE_ACCOUNT_JSON= ✅ set
 ```
 
-Table name is a blocker — confirm with data team.
+---
 
-tests/test_pg_listener.py — mock asyncpg, assert run_agent called on notify
+## Deployment Steps (remaining)
 
-### Step 2: Google Doc Report Generator — tools/report_generator.py (3 hrs)
+1. `pip install -r requirements.txt` + `python main.py` — local test run
+2. Confirm Postgres column names + account_config populated
+3. GCP: enable APIs, Artifact Registry, Secret Manager
+4. `gcloud builds submit --tag $IMAGE .`
+5. `gcloud run jobs create walk-the-store ...`
+6. `gcloud scheduler jobs create http walk-the-store-daily --schedule="0 14 * * *" ...`
+7. `gcloud run jobs execute walk-the-store` — manual test
+8. Verify Drive doc created, Slack notification sent, Ask Emplicit cites the doc
 
-Core new deliverable. Produces the document shown in the example PDF.
-
-- Auth: service account, needs drive + documents scopes
-- Google Docs API (documents.create + documents.batchUpdate)
-- Saves to account.drive_folder_id using Drive Files API
-- Document content mirrors example PDF exactly
-- File name: "Brand Name — Amazon Health Report — 2026-04-13"
-- Sets sharing to "anyone at Emplicit with link can view"
-- Returns shareable URL
-
-New .env addition:
-  GOOGLE_SERVICE_ACCOUNT_JSON=path/to/sa.json
-
-tests/test_report_generator.py — mock Google APIs, assert doc content structure
-
-### Step 3: Wire Report Generator into Orchestrator (1 hr)
-
-Modify controllers/orchestrator.py — after report_builder.build_brand_report():
-
-```python
-from tools.report_generator import create_report
-try:
-    drive_url = create_report(report, account)
-except Exception as e:
-    logger.error(f"Drive report failed for {account.brand_name}: {e}")
-    drive_url = None   # Alert still sends, just without link
-
-_route_alerts(report, account, drive_url)
-```
-
-Modify views/slack_formatter.py — add format_notification(report, drive_url):
-- Brief Block Kit message: severity + top findings + View Report link
-- Healthy accounts remain silent (existing behavior unchanged)
-
-Modify tools/slack_alerts.py — pass drive_url through to post_to_channel and send_dm
+See `docs/CLOUD_RUN_DEPLOY.md` for full commands.
 
 ---
 
-## Day 2 (April 14) — Deployment + Claude Enterprise
+## Indecision — Architectural Pivots
 
-### Step 4: main.py + Health Check (45 min)
+### Round 1 — Original (Sessions 1–4)
+Direct IntentWise MCP API calls → Cloud Scheduler → Slack Block Kit alerts inline.
+**Stalled:** IntentWise OAuth credentials never arrived. No document storage.
 
-- --mode all: asyncio.gather(start_listener(), health_check_server()) — Cloud Run default
-- --mode agent: one-shot run_agent() — manual test
-- stdlib http.server on port 8080 for Cloud Run health check
+### Round 2 — First pivot
+Postgres reads + LISTEN/NOTIFY trigger + custom Slack bot with Claude tool-use.
+**Dropped:** Emplicit already has Claude Enterprise — building a custom bot duplicates it.
 
-### Step 5: Dockerfile (45 min)
+### Round 3 — Second pivot
+Claude Enterprise for chat + LISTEN/NOTIFY trigger + append to single shared Google Doc.
+**Dropped:** Reports need to be formal per-brand dated documents (per example PDF), not appended text.
 
-```dockerfile
-FROM python:3.13-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-EXPOSE 8080
-CMD ["python", "main.py", "--mode", "all"]
-```
+### Round 4 — Third pivot
+LISTEN/NOTIFY + Cloud Run `min-instances:1` + Google Doc per brand.
+**Dropped:** Intentwise syncs on a predictable daily schedule — LISTEN/NOTIFY adds complexity for zero benefit. Cloud Scheduler + Cloud Run Jobs is simpler, cheaper (~free vs ~$20/month), and no persistent connection needed.
 
-### Step 6: Cloud Run Deployment Docs (45 min)
-
-docs/CLOUD_RUN_DEPLOY.md — manual steps:
-- Build + push to Artifact Registry
-- gcloud run deploy with --min-instances=1
-- Secret Manager for all .env vars
-- Service account: Postgres read/write + Drive + Docs scopes
-
-### Step 7: Claude Enterprise Project Setup (1 hr — no code)
-
-docs/CLAUDE_ENTERPRISE_SETUP.md:
-1. claude.ai → Projects → New: "Walk the Store Agent"
-2. System prompt: Walk the Store context, threshold meanings, how to read severity
-3. Connect the Drive folder where brand reports are saved
-4. Share project with ops team
-5. Employees ask "What was Brand X's status today?" → Claude reads the Drive doc
-
-### Step 8: End-to-End Test (1 hr)
-
-| Test | Method |
-|------|--------|
-| NOTIFY triggers orchestrator | SELECT pg_notify('wts_data_ready', 'test'); → orchestrator runs |
-| Report appears in Drive | Check brand folder — new doc present after test run |
-| Slack notification has link | Alert message contains Drive URL |
-| Claude Enterprise reads report | claude.ai → "What was Brand X's status today?" → cites doc |
-| Docker builds | docker build -t wts:poc . succeeds |
-| Unit tests | pytest tests/ with mocked credentials |
-
-### Step 9: Memory + Docs Update (30 min)
-
-- Update memory.md with Session 5 log
-- Update claude_skills_list.md
+### Round 5 — Final (current)
+**Cloud Scheduler + Cloud Run Jobs + Google Doc per brand + Ask Emplicit.**
+Locked. No further changes planned for POC.
 
 ---
 
-## MCP & SDK Recommendations
-
-### asyncpg — Add (narrow use)
-LISTEN/NOTIFY connection only. psycopg2 stays for all other Postgres queries. asyncpg is the only Python driver with native async LISTEN support.
-
-### google-api-python-client + google-auth — Add
-- Google Docs API (documents scope): create and write formatted report doc
-- Google Drive API (drive scope): save to per-brand folder, set sharing, return URL
-Service account from Session 3 — needs both scopes added.
-
-### Anthropic SDK — No changes
-Chat is handled by Claude Enterprise. No agentic code in this POC.
-
-### slack-bolt — Not needed
-No custom bot. slack_sdk (already installed) handles sending alert notifications with Drive links.
-
-### Future — Walk the Store MCP Server (v2)
-If employees want live Postgres queries from Claude Desktop: small MCP server exposing
-get_account_health(brand) and list_active_accounts(). Not needed for POC.
-
----
-
-## Open Blockers
-
-| Blocker | Owner | Impact |
-|---------|-------|--------|
-| Which Postgres table does IntentWise write to? | Steven → Data team | Required for pg_trigger_setup.sql |
-| Service account Drive + Docs scopes confirmed | Steven | Required for report_generator.py |
-| Per-brand Drive folder IDs in account_config | Steven → Data team | Required for drive_folder_id lookups |
-| Claude Enterprise Walk the Store Project created | Steven | Required for chat to be useful |
-
----
-
-## POC Deliverables (End of April 14)
-
-1. Automated reports: Postgres event → health check → formatted Google Doc in Drive → Slack notification with link
-2. Report format: Matches example PDF (header, exec summary, metrics table, detailed findings, footer)
-3. Chat ready: Claude Enterprise + Drive connector — employees can ask questions about stored reports immediately
-4. Deployment-ready: Dockerized, Cloud Run docs complete, min-instances:1
-5. MCP path clear: v2 adds real-time Postgres queries via MCP server if needed
-
----
-
-## Indecision
-
-This section documents all the architectural pivots made during the April 13 planning session, and why each decision was changed.
-
----
-
-### Round 1 — Original POC scope (pre-session, Sessions 1–4)
-
-**What was planned:**
-- Pull account health data directly from IntentWise MCP server via OAuth
-- Run daily at 9:00 AM ET via Cloud Scheduler cron
-- Send Slack Block Kit alerts (channel + DM) with full report content inline in the message
-- No interactive chat, no Drive document storage
-
-**Why it stalled:**
-- Blocked on IntentWise OAuth credentials (never arrived after Sessions 1–4)
-- Scheduled poll had no way to know when IntentWise data was actually ready
-- No document storage — reports existed only as ephemeral Slack messages
-
----
-
-### Round 2 — First new direction (start of this session)
-
-**Proposed:**
-- Skip IntentWise direct calls — read from Postgres after IntentWise syncs data there
-- Postgres LISTEN/NOTIFY instead of Cloud Scheduler poll
-- Full agentic Slack DM bot: Claude with tool-use (Postgres + Google Drive)
-- Build chat_server.py with Slack Bolt, Socket Mode, Claude tool-use loop
-- Build tools/google_drive.py for Drive document search and reading
-
-**Why it changed:**
-- User confirmed Emplicit already has active claude.ai Enterprise subscriptions
-- Claude Enterprise already handles chat + Drive document search natively
-- Building a custom Slack bot would duplicate what Claude Enterprise already does
-- Eliminated: chat_server.py, controllers/chat_controller.py, tools/google_drive.py, slack-bolt
-
----
-
-### Round 3 — Claude Enterprise pivot
-
-**Proposed:**
-- Claude Enterprise handles all interactive chat (no custom bot)
-- Notification pipeline only: Postgres LISTEN/NOTIFY → orchestrator → existing Slack alerts
-- Daily Drive export: append health summary text to a single shared Google Doc
-
-**Why it changed:**
-- User clarified: notifications should be formal documents that the agent creates and stores in Drive
-- The example PDF showed a full structured report: header, exec summary, metrics table, detailed findings by category, footer with timestamp
-- "Append to one doc" too lightweight — each report should be its own dated Google Doc per brand
-- Slack alert should link to the Drive doc, not contain the full report inline
-
----
-
-### Round 4 — Final architecture (this plan)
-
-**Locked decisions:**
-- Postgres LISTEN/NOTIFY → orchestrator → report_generator.py creates a full Google Doc per brand run
-- Google Doc format matches example PDF exactly
-- Saved to AccountConfig.drive_folder_id (per-brand folder, already in data model)
-- Slack notification: brief severity summary + link to Drive doc
-- Claude Enterprise reads Drive reports via connector — no custom chat code
-
-**Ruled out permanently:**
-- Custom Slack bot for chat (Claude Enterprise replaces it)
-- Anthropic Managed Agents (stateless — incompatible with LISTEN/NOTIFY)
-- NotebookLM (removed Session 4, out of scope for all versions)
-- Direct IntentWise API calls in POC (data comes from Postgres)
-
----
-
-*Plan finalized: April 13, 2026 | Session 5 | Author: Claude Code + Steven Polino*
+*Plan finalized: April 13, 2026 | Updated through Session 7 | Author: Claude Code + Steven Polino*
