@@ -16,6 +16,32 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 6 — Ask Emplicit confirmed, Drive clarifications, account_config flow
+**Date:** 2026-04-13
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Ask Emplicit = existing Claude Enterprise instance** — not a new claude.ai Project; it is the company-wide "Ask Emplicit" assistant already deployed and accessible from the left sidebar; Drive already connected; zero chat setup needed
+- **Part 7 of SETUP.md is complete** — Ask Emplicit connected to Drive confirmed; reports will be available to employees immediately after first live run
+- **account_config population flow confirmed** — user has Google Sheets with all brand data (seller ID, Slack channel IDs, Teamwork project IDs, AM Slack IDs, drive_folder_IDs); share sheet when ready → generate SQL INSERTs via `/add-brand` → user runs manually
+- **Drive safety verified** — agent never reads, appends, overwrites, or deletes existing Drive files; only creates new doc per brand per run and moves it to the brand folder
+
+#### Files Updated
+- `docs/CLAUDE_ENTERPRISE_SETUP.md` — completely rewritten; removed incorrect "create a Project" instructions; now accurately describes Ask Emplicit + Drive connector flow in ~30 lines
+- `info/SETUP.md` — Part 7 updated: Ask Emplicit/Drive confirmed checked off; only remaining step is post-run test
+
+#### Still To Do
+- [ ] Confirm Postgres column names with data team (seller_id col, marketplace col, date col, 5 metric table column names)
+- [ ] Confirm `walk_the_store.account_config` is active with Gilbert; get CREATE TABLE SQL if needed
+- [ ] Share Google Sheet with brand data → generate SQL INSERTs for account_config
+- [ ] Set up Google service account (Drive + Docs scopes); download SA JSON
+- [ ] Fill in `.env` with all credentials
+- [ ] Run local test: `python main.py`
+- [ ] GCP: enable APIs, Artifact Registry, Secret Manager, Cloud Run Job, Cloud Scheduler
+- [ ] After first live run: test Ask Emplicit → "What was [Brand]'s status today?"
+
+---
+
 ### Session 5 — Full POC rebuild: Cloud Run Jobs, Google Docs output, Claude Enterprise chat
 **Date:** 2026-04-13
 **Participants:** Claude Code
