@@ -16,6 +16,33 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 7 — Credentials complete, ready for local test
+**Date:** 2026-04-13
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Teamwork: Collaborator service account** — created a dedicated Collaborator user in Teamwork (not personal token, not full member seat); read-only by design, doesn't consume a paid seat
+- **Google service account: reuse existing** — using `polino-agentic-solutions-servi@polino-agentic-solutions.iam.gserviceaccount.com` rather than creating a new one; APIs (Docs + Drive) activated; JSON key downloaded
+- **Scopes not added in console** — `_SCOPES` in `report_generator.py` handles auth scopes in code; no console configuration needed
+- **VS Code terminal env injection not needed** — `load_dotenv()` in `main.py` handles `.env` loading; VS Code setting irrelevant
+- **Postgres queries blocked** — user entered pgAdmin but lacks permissions to view data yet; column name confirmations still pending
+- **Ask Emplicit confirmed connected to Drive** — zero setup needed for chat layer
+
+#### Files Updated
+- `info/SETUP.md` — Parts 2 and 3 fully checked off; service account details noted
+
+#### Still To Do
+- [ ] Share each brand's Drive folder with service account email (Editor permission)
+- [ ] Confirm Postgres column names with data team (pending permissions in pgAdmin)
+- [ ] Confirm `walk_the_store.account_config` is active with Gilbert; populate with brand data from Google Sheets
+- [ ] **Part 4: Local test run** — `pip install -r requirements.txt` then `python main.py`
+  - Postgres queries will log gaps until column names confirmed — expected, won't crash
+  - Need at least 1 row in `walk_the_store.account_config` before running
+- [ ] Parts 5–6: GCP setup, Cloud Run Job, Cloud Scheduler
+- [ ] After first live run: test Ask Emplicit → "What was [Brand]'s status today?"
+
+---
+
 ### Session 6 — Ask Emplicit confirmed, Drive clarifications, account_config flow
 **Date:** 2026-04-13
 **Participants:** Claude Code
