@@ -107,6 +107,7 @@ def save_report(report: HealthReport) -> None:
 #   Assumed: 'seller_id' — update WHERE clauses if column is named differently (e.g. 'account_id').
 # april13 waiting on confirmation - confirm marketplace column name in each table.
 #   Assumed: 'marketplace' — update WHERE clauses if different.
+# CONFIRMED: tables are append-only — new rows inserted daily, no upserts. ORDER BY date DESC LIMIT 1 is correct.
 # april13 waiting on confirmation - confirm date column name used for ORDER BY in each table.
 #   Assumed: 'date' — update ORDER BY clauses if different (e.g. 'report_date', 'sync_date').
 def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
