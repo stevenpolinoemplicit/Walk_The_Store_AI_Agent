@@ -16,6 +16,30 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 11 — Google auth Cloud Run fix, Slack chat:write scope fix, deploy doc updated
+**Date:** 2026-04-14
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Shared Google auth helper created** — both sheets_reader.py and report_generator.py used `from_service_account_file()` which breaks on Cloud Run (no local filesystem); new `tools/google_auth.py` detects file path vs JSON string via `os.path.exists()` and calls the correct method; no .env change needed locally
+- **Slack bot was missing `chat:write` scope** — local test failed with `missing_scope` / `chat:write:bot`; bot had `im:write` but not `chat:write`; fixed by adding `chat:write` in Slack app OAuth settings and reinstalling to workspace; new token copied to .env
+- **CLOUD_RUN_DEPLOY.md Step 5 was missing BRAND_SHEET_ID and PEOPLE_SHEET_ID** — added to `--set-secrets` flag; Step 4 already had them
+
+#### Files Created
+- `tools/google_auth.py` — shared credential helper; handles file path (local) and JSON string (Cloud Run) automatically
+
+#### Files Updated
+- `tools/sheets_reader.py` — uses `get_service_account_credentials()` from google_auth; removed direct `from_service_account_file()` call
+- `tools/report_generator.py` — same; removed april13 uncertainty comment
+- `docs/CLOUD_RUN_DEPLOY.md` — added BRAND_SHEET_ID and PEOPLE_SHEET_ID to Step 5 `--set-secrets`
+
+#### Still To Do
+- [ ] Confirm `python main.py` passes end-to-end after Slack scope fix
+- [ ] ODR: run pgAdmin query to find truncated table name or identify ODR row in sellerperformance_report
+- [ ] GCP deployment (Parts 5–6 of SETUP.md) — follow CLOUD_RUN_DEPLOY.md Steps 1–7
+
+---
+
 ### Session 10 — Schema created, ON CONFLICT upsert, always-notify DMs, GCP IAM clarified
 **Date:** 2026-04-14
 **Participants:** Claude Code
