@@ -8,11 +8,12 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from google.oauth2 import service_account
+from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
 from config import settings
 from config.thresholds import CRITICAL, WARNING, HEALTHY, UNKNOWN
+from tools.google_auth import get_service_account_credentials
 from models.account import AccountConfig
 from models.report import HealthReport
 
@@ -45,15 +46,9 @@ _ACCOUNT_CHECKS = {"account_health_rating", "account_status", "food_safety", "ip
 _CUSTOMER_CHECKS = {"order_defect_rate"}
 
 
-# #note: Loads service account credentials from the JSON file path defined in settings.py
-def _get_credentials() -> service_account.Credentials:
-    # april13 waiting on confirmation - is GOOGLE_SERVICE_ACCOUNT_JSON a file path (e.g. /secrets/sa.json)
-    # or the raw JSON content as a string? Adjust from_service_account_file vs from_service_account_info.
-    sa_json_path = settings.GOOGLE_SERVICE_ACCOUNT_JSON
-    creds = service_account.Credentials.from_service_account_file(
-        sa_json_path, scopes=_SCOPES
-    )
-    return creds
+# #note: Loads service account credentials via shared helper — works locally (file path) and on Cloud Run (JSON string)
+def _get_credentials() -> Credentials:
+    return get_service_account_credentials(_SCOPES)
 
 
 # #note: Counts findings at critical and warning level for the executive summary line
