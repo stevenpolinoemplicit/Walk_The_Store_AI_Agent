@@ -24,6 +24,9 @@ google-api-python-client
 google-auth
 google-auth-httplib2
 
+# Google Sheets — brand config and people lookup at agent startup
+gspread
+
 # Dev/test
 black
 pytest
