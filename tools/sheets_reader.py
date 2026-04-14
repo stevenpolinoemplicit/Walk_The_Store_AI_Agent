@@ -1,7 +1,7 @@
 # sheets_reader.py — Loads active brand accounts from Google Sheets.
 # Replaces postgres.get_active_accounts(). Reads the Brand Code Mapping Sheet for brand config
-# and the People Lookup Sheet to find each brand's AM Slack ID. Resolves each MWS seller ID
-# to the numeric Intentwise account_id via a one-time Postgres lookup at startup.
+# and the People Lookup Sheet to find each brand's AM Slack ID.
+# account_id is read directly from the iw_account_id column (column S) in the Brand Code Mapping Sheet.
 
 import logging
 from typing import List, Optional
@@ -11,11 +11,11 @@ from google.oauth2.service_account import Credentials
 
 from config import settings
 from models.account import AccountConfig
-from tools.postgres import get_connection
+from tools.slack_alerts import notify_error
 
 logger = logging.getLogger(__name__)
 
-# Scopes needed to read both Google Sheets and (if needed) Drive file metadata
+# Scopes needed to read Google Sheets
 _SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets.readonly",
     "https://www.googleapis.com/auth/drive.readonly",
@@ -50,28 +50,6 @@ def _get_gspread_client() -> gspread.Client:
     return gspread.Client(auth=creds)
 
 
-# #note: Queries Postgres to resolve a bare MWS seller ID to the numeric Intentwise account_id.
-# The DB stores seller IDs with a _com suffix (e.g. A2M0WKTGB6GQB6_com), so we append it here.
-def _resolve_account_id(mws_seller_id: str) -> Optional[int]:
-    try:
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT DISTINCT account_id
-                    FROM amazon_source_data.sellercentral_account_status_changed_report
-                    WHERE mws_seller_id = %s
-                    LIMIT 1
-                    """,
-                    (f"{mws_seller_id}_com",),
-                )
-                row = cur.fetchone()
-                return int(row[0]) if row else None
-    except Exception as e:
-        logger.warning(f"account_id lookup failed for {mws_seller_id}: {e}")
-        return None
-
-
 # #note: Reads the People Lookup Sheet and returns a dict mapping brand_code -> AM slack_user_id.
 # Each AM row has an am_brands column with comma-separated brand codes they manage.
 def _build_am_lookup(client: gspread.Client) -> dict[str, str]:
@@ -94,7 +72,7 @@ def _build_am_lookup(client: gspread.Client) -> dict[str, str]:
 
 
 # #note: Main entry point — reads the Brand Code Mapping Sheet and returns all active brands
-# as AccountConfig objects. Skips brands where account_id cannot be resolved from Postgres.
+# as AccountConfig objects. Skips brands where iw_account_id is missing or invalid.
 def get_active_accounts() -> List[AccountConfig]:
     client = _get_gspread_client()
     am_lookup = _build_am_lookup(client)
@@ -119,14 +97,24 @@ def get_active_accounts() -> List[AccountConfig]:
             logger.warning(f"Skipping row with missing brand_code or seller_id: {row}")
             continue
 
-        account_id = _resolve_account_id(mws_seller_id)
-        if account_id is None:
+        # #note: iw_account_id (column S) is the numeric Intentwise account_id — read directly from sheet
+        raw_account_id = row.get("iw_account_id", "")
+        try:
+            account_id = int(raw_account_id)
+        except (ValueError, TypeError):
             logger.warning(
-                f"[{brand_code}] Could not resolve account_id for {mws_seller_id} — skipping"
+                f"[{brand_code}] iw_account_id '{raw_account_id}' is missing or invalid — skipping"
+            )
+            notify_error(
+                source="sheets_reader / Brand Code Mapping Sheet",
+                message=(
+                    f"Brand `{brand_code}` was skipped — `iw_account_id` is missing or invalid in column S.\n"
+                    f"Add the numeric Intentwise account_id for this brand to resume processing."
+                ),
             )
             continue
 
-        # #note: Strip tw_prefix and _task_list suffix to get clean dept keys (e.g. "marketing")
+        # #note: Strip tw_ prefix and _task_list suffix to get clean dept keys (e.g. "marketing")
         tw_task_lists: dict[str, Optional[str]] = {
             col.replace("tw_", "").replace("_task_list", ""): str(row.get(col, "")).strip() or None
             for col in _TW_COLUMNS
@@ -143,9 +131,7 @@ def get_active_accounts() -> List[AccountConfig]:
                 tw_task_lists=tw_task_lists,
             )
         )
-        logger.info(
-            f"Loaded account: {brand_code} ({mws_seller_id} → account_id={account_id})"
-        )
+        logger.info(f"Loaded account: {brand_code} (account_id={account_id})")
 
     logger.info(f"sheets_reader loaded {len(accounts)} active accounts")
     return accounts
