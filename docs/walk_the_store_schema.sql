@@ -1,7 +1,7 @@
 -- walk_the_store_schema.sql
 -- Run this manually in pgAdmin when ready to persist daily reports.
--- NOT required for POC — save_report() fails gracefully until this schema exists.
--- The walk_the_store schema does NOT exist yet — run these statements in order.
+-- Schema created April 14, 2026. save_report() in postgres.py upserts on (brand_code, report_date).
+-- Run this only if recreating from scratch — schema already exists in the Emplicit Postgres DB.
 -- This schema holds agent-owned data only. All Intentwise data lives in amazon_source_data (never modified).
 --
 -- NOTE: account_config table removed — brand config now comes from Google Sheets (Brand Code Mapping Sheet).

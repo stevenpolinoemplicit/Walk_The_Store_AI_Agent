@@ -75,7 +75,7 @@ Before touching GCP, confirm the agent runs locally end-to-end.
   - [ ] Classifies severity correctly
   - [ ] Creates Google Doc — appears in shared POC Drive folder
   - [ ] Slack notification sent with Drive link
-  - [ ] `save_report()` fails gracefully — schema not created, confirm error is caught not crashed
+  - [x] `save_report()` writes to walk_the_store.daily_health_reports — schema created, upserts on (brand_code, report_date)
 - [ ] Fix ODR once table name is confirmed (see Part 1)
 
 ---

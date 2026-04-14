@@ -16,6 +16,35 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 10 — Schema created, ON CONFLICT upsert, always-notify DMs, GCP IAM clarified
+**Date:** 2026-04-14
+**Participants:** Claude Code
+
+#### Decisions Made
+- **`walk_the_store` schema created in Postgres** — user ran the SQL in pgAdmin; schema is now live; save_report() will succeed on every run
+- **ON CONFLICT upsert added to save_report()** — schema has UNIQUE (brand_code, report_date); without conflict handling a re-run on the same day would crash; added DO UPDATE SET covering all non-key columns so re-runs safely overwrite
+- **Two always-notify Slack users hardwired** — U5H5GLJLV and U0AJYBWU03X receive a DM for every warning/critical brand alert AND the ops summary after every run; hardcoded in settings.py as NOTIFY_ALWAYS_IDS (not env var — intentionally fixed)
+- **GCP IAM clarified** — "Google Docs + Drive scopes" in CLOUD_RUN_DEPLOY.md are OAuth scopes in code, not IAM roles; actual IAM needed: secretmanager.secretAccessor + run.invoker; Drive/Sheets/Docs access is granted at resource level (share folder/sheets with service account); all confirmed complete
+- **GOOGLE_SERVICE_ACCOUNT_JSON path approach needs to change for GCP** — local uses from_service_account_file() with a file path; Cloud Run has no local file; will need to switch to from_service_account_info() reading JSON from Secret Manager before GCP deploy
+
+#### Files Updated
+- `tools/postgres.py` — added ON CONFLICT (brand_code, report_date) DO UPDATE SET to save_report() INSERT; updated comment to reflect schema is live
+- `config/settings.py` — added NOTIFY_ALWAYS_IDS list with two hardwired Slack user IDs
+- `controllers/orchestrator.py` — added settings import; DMs NOTIFY_ALWAYS_IDS on every warning/critical brand alert and ops summary
+- `docs/walk_the_store_schema.sql` — header updated to reflect schema is created and live
+- `info/SETUP.md` — save_report() test item checked off with updated description
+- `info/New_POC_Plan_April13.md` — architecture line updated to reflect schema is live with upserts
+- `docs/CLOUD_RUN_DEPLOY.md` — BRAND_SHEET_ID and PEOPLE_SHEET_ID noted as missing from Step 4 secrets and Step 5 --set-secrets (not yet added to file)
+
+#### Still To Do
+- [ ] ODR: run pgAdmin query to find truncated table name or identify ODR row in sellerperformance_report
+- [ ] Local test: `python main.py`
+- [ ] Update CLOUD_RUN_DEPLOY.md Step 4 + Step 5 to add BRAND_SHEET_ID and PEOPLE_SHEET_ID secrets
+- [ ] Before GCP deploy: switch sheets_reader.py and report_generator.py from from_service_account_file() to from_service_account_info() reading JSON content from Secret Manager
+- [ ] GCP deployment (Parts 5–6 of SETUP.md)
+
+---
+
 ### Session 9 — AHR bug fix, iw_account_id from sheet, doc updates
 **Date:** 2026-04-14
 **Participants:** Claude Code

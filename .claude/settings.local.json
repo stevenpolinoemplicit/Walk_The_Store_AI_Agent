@@ -25,7 +25,8 @@
       "Bash(ls:*)",
       "Bash(git -C \"C:\\\\Users\\\\stpol\\\\OneDrive\\\\Desktop\\\\Walk_The_Store_AI_Agent\\\\.claude\\\\worktrees\\\\happy-volhard\" log --oneline -5)",
       "Bash(git -C \"C:\\\\Users\\\\stpol\\\\OneDrive\\\\Desktop\\\\Walk_The_Store_AI_Agent\\\\.claude\\\\worktrees\\\\happy-volhard\" status)",
-      "Bash(jq --version)"
+      "Bash(jq --version)",
+      "Skill(memory-update)"
     ]
   }
 }
