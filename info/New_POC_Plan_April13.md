@@ -35,7 +35,7 @@ Cloud Scheduler (7:00 AM PDT daily, cron: 0 14 * * *)
       report_generator.create_report()     ← Google Doc → shared POC Drive folder
       slack_alerts.post_to_channel()       ← brief notification + Drive link
       slack_alerts.send_dm()               ← AM only, critical severity
-      postgres.save_report()               ← walk_the_store.daily_health_reports (fails gracefully — schema not created for POC)
+      postgres.save_report()               ← walk_the_store.daily_health_reports (schema created — upserts on brand_code + report_date)
   → build_ops_summary() → post_ops_summary()
   → exit
 
