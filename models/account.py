@@ -9,8 +9,8 @@ from pydantic import BaseModel
 class AccountConfig(BaseModel):
     id: int
     brand_name: str
-    seller_id: str
-    marketplace: str
+    account_id: int                        # CONFIRMED: matches bigint account_id in Intentwise tables
+    country_code: str                      # CONFIRMED: matches country_code varchar in Intentwise tables
     slack_channel_id: str
     teamwork_project_id: str
     account_manager_slack_id: str

@@ -44,7 +44,7 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
     metrics_raw: dict = {}
     try:
         metrics_raw = postgres.get_account_health_metrics(
-            account.seller_id, account.marketplace
+            account.account_id, account.country_code
         )
     except Exception:
         logger.warning(f"[{brand}] Health metrics unavailable — logged as gap")

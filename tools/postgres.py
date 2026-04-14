@@ -107,14 +107,12 @@ def save_report(report: HealthReport) -> None:
 # #note: Fetches all account health metrics for a seller from Intentwise-synced Postgres tables.
 # Each sub-query is isolated so a single table failure does not block the rest.
 # CONFIRMED: schema is 'amazon_source_data' (main schemas in use: amazon_source_data, amazon_marketing_cloud).
-# april13 waiting on confirmation - confirm seller identifier column name in each table.
-#   Assumed: 'seller_id' — update WHERE clauses if column is named differently (e.g. 'account_id').
-# april13 waiting on confirmation - confirm marketplace column name in each table.
-#   Assumed: 'marketplace' — update WHERE clauses if different.
-# CONFIRMED: tables are append-only — new rows inserted daily, no upserts. ORDER BY date DESC LIMIT 1 is correct.
-# april13 waiting on confirmation - confirm date column name used for ORDER BY in each table.
-#   Assumed: 'date' — update ORDER BY clauses if different (e.g. 'report_date', 'sync_date').
-def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
+# CONFIRMED (from columns_for_5_tables.txt, shipping table): seller identifier = account_id (bigint).
+# CONFIRMED (from columns_for_5_tables.txt, shipping table): marketplace = country_code (varchar).
+# CONFIRMED (from columns_for_5_tables.txt, shipping table): date column = download_date (date).
+# CONFIRMED: tables are append-only — new rows inserted daily, no upserts. ORDER BY download_date DESC LIMIT 1 is correct.
+# NOTE: account_id / country_code / download_date confirmed for shipping table; assumed consistent across all 4 tables.
+def get_account_health_metrics(account_id: int, country_code: str) -> dict:
     metrics: dict = {
         "late_shipment_rate": None,
         "valid_tracking_rate": None,
@@ -130,75 +128,80 @@ def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
 
                 # Shipping metrics — late shipment rate, valid tracking rate, pre-cancel rate
-                # april13 waiting on confirmation - confirm column names: late_shipment_rate,
-                #   valid_tracking_rate, pre_fulfillment_cancel_rate exist in this table
+                # CONFIRMED column names from columns_for_5_tables.txt:
+                #   late_shipment_rate_rate, valid_tracking_rate_rate, pre_fulfillment_cancellation_rate_rate
                 try:
                     cur.execute(
                         """
-                        SELECT late_shipment_rate, valid_tracking_rate, pre_fulfillment_cancel_rate
+                        SELECT late_shipment_rate_rate, valid_tracking_rate_rate,
+                               pre_fulfillment_cancellation_rate_rate
                         FROM amazon_source_data.sellercentral_sellerperformance_shippingperformance_report
-                        WHERE seller_id = %s AND marketplace = %s
-                        ORDER BY date DESC LIMIT 1
+                        WHERE account_id = %s AND country_code = %s
+                        ORDER BY download_date DESC LIMIT 1
                         """,
-                        (seller_id, marketplace),
+                        (account_id, country_code),
                     )
                     row = cur.fetchone()
                     if row:
-                        metrics["late_shipment_rate"] = row.get("late_shipment_rate")
-                        metrics["valid_tracking_rate"] = row.get("valid_tracking_rate")
-                        metrics["pre_cancel_rate"] = row.get("pre_fulfillment_cancel_rate")
+                        metrics["late_shipment_rate"] = row.get("late_shipment_rate_rate")
+                        metrics["valid_tracking_rate"] = row.get("valid_tracking_rate_rate")
+                        metrics["pre_cancel_rate"] = row.get("pre_fulfillment_cancellation_rate_rate")
                 except Exception as e:
-                    logger.warning(f"Shipping metrics query failed for {seller_id}: {e}")
+                    logger.warning(f"Shipping metrics query failed for {account_id}: {e}")
 
                 # Customer service — order defect rate
-                # april13 waiting on confirmation - confirm column name: order_defect_rate exists in this table
-                try:
-                    cur.execute(
-                        """
-                        SELECT order_defect_rate
-                        FROM amazon_source_data.sellercentral_sellerperformance_customerserviceperformance_report
-                        WHERE seller_id = %s AND marketplace = %s
-                        ORDER BY date DESC LIMIT 1
-                        """,
-                        (seller_id, marketplace),
-                    )
-                    row = cur.fetchone()
-                    if row:
-                        metrics["order_defect_rate"] = row.get("order_defect_rate")
-                except Exception as e:
-                    logger.warning(f"Customer service metrics query failed for {seller_id}: {e}")
+                # april14 PROBLEM: table name 'sellercentral_sellerperformance_customerserviceperformance_report'
+                #   is 65 chars — Postgres truncates identifiers at 63. Table not found in pgAdmin query results.
+                #   Actual table name is likely truncated. Column name for ODR still unconfirmed.
+                #   Leaving query commented out until data team confirms the real table name.
+                # try:
+                #     cur.execute(
+                #         """
+                #         SELECT <order_defect_rate_column>
+                #         FROM amazon_source_data.<truncated_table_name>
+                #         WHERE account_id = %s AND country_code = %s
+                #         ORDER BY download_date DESC LIMIT 1
+                #         """,
+                #         (account_id, country_code),
+                #     )
+                #     row = cur.fetchone()
+                #     if row:
+                #         metrics["order_defect_rate"] = row.get("<order_defect_rate_column>")
+                # except Exception as e:
+                #     logger.warning(f"Customer service metrics query failed for {account_id}: {e}")
 
                 # Policy compliance — food safety and IP complaints
-                # april13 waiting on confirmation - confirm column names: food_safety_count, ip_complaint_count exist in this table
+                # april14 waiting on confirmation - confirm exact column names in this table
+                #   (assumed: food_safety_count, ip_complaint_count — update if different)
                 try:
                     cur.execute(
                         """
                         SELECT food_safety_count, ip_complaint_count
                         FROM amazon_source_data.sellercentral_sellerperformance_policycompliance_report
-                        WHERE seller_id = %s AND marketplace = %s
-                        ORDER BY date DESC LIMIT 1
+                        WHERE account_id = %s AND country_code = %s
+                        ORDER BY download_date DESC LIMIT 1
                         """,
-                        (seller_id, marketplace),
+                        (account_id, country_code),
                     )
                     row = cur.fetchone()
                     if row:
                         metrics["food_safety_count"] = row.get("food_safety_count")
                         metrics["ip_complaint_count"] = row.get("ip_complaint_count")
                 except Exception as e:
-                    logger.warning(f"Policy metrics query failed for {seller_id}: {e}")
+                    logger.warning(f"Policy metrics query failed for {account_id}: {e}")
 
                 # Seller performance — account health rating
-                # april13 waiting on confirmation - confirm column name: account_health_rating_ahr_status
-                #   in this table (may be a numeric score or a status string — confirm type too)
+                # april14 waiting on confirmation - confirm column name for AHR score in this table
+                #   (assumed: account_health_rating_ahr_status — update if different; confirm numeric vs string)
                 try:
                     cur.execute(
                         """
                         SELECT account_health_rating_ahr_status
                         FROM amazon_source_data.sellercentral_sellerperformance_report
-                        WHERE seller_id = %s AND marketplace = %s
-                        ORDER BY date DESC LIMIT 1
+                        WHERE account_id = %s AND country_code = %s
+                        ORDER BY download_date DESC LIMIT 1
                         """,
-                        (seller_id, marketplace),
+                        (account_id, country_code),
                     )
                     row = cur.fetchone()
                     if row:
@@ -206,29 +209,29 @@ def get_account_health_metrics(seller_id: str, marketplace: str) -> dict:
                             "account_health_rating_ahr_status"
                         )
                 except Exception as e:
-                    logger.warning(f"Seller performance query failed for {seller_id}: {e}")
+                    logger.warning(f"Seller performance query failed for {account_id}: {e}")
 
                 # Account status
-                # april13 waiting on confirmation - confirm column name: account_status exists in this table
-                #   and confirm expected values (e.g. 'NORMAL', 'AT_RISK', 'DEACTIVATED')
+                # april14 waiting on confirmation - confirm column name for account status in this table
+                #   (assumed: account_status — confirm expected values e.g. 'NORMAL', 'AT_RISK', 'DEACTIVATED')
                 try:
                     cur.execute(
                         """
                         SELECT account_status
                         FROM amazon_source_data.sellercentral_account_status_changed_report
-                        WHERE seller_id = %s AND marketplace = %s
-                        ORDER BY date DESC LIMIT 1
+                        WHERE account_id = %s AND country_code = %s
+                        ORDER BY download_date DESC LIMIT 1
                         """,
-                        (seller_id, marketplace),
+                        (account_id, country_code),
                     )
                     row = cur.fetchone()
                     if row:
                         metrics["account_status"] = row.get("account_status")
                 except Exception as e:
-                    logger.warning(f"Account status query failed for {seller_id}: {e}")
+                    logger.warning(f"Account status query failed for {account_id}: {e}")
 
     except Exception as e:
-        logger.error(f"get_account_health_metrics connection failed for {seller_id}: {e}")
+        logger.error(f"get_account_health_metrics connection failed for {account_id}: {e}")
         raise
 
     return metrics
