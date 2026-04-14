@@ -1,46 +1,52 @@
-# SETUP.md — Walk the Store: April 13 Setup Plan
-
+# SETUP.md — Walk the Store: Setup Checklist
+> Last updated: April 14, 2026 — Session 8
 > Code is built. This is the checklist to go from built → running.
 > Work top to bottom. Blocked items are marked — get answers before proceeding past them.
 
 ---
 
-## PART 1 — Get Answers (Blockers First)
+## PART 1 — Confirm Data (Blockers First)
 
-These must be resolved before any live testing. Get these from the data team and boss today.
+### Postgres Column Names
+- [x] Schema: `amazon_source_data` ✅
+- [x] Seller identifier: `account_id` (bigint) ✅
+- [x] Marketplace: `country_code` (varchar) ✅
+- [x] Date column (shipping + policycompliance): `download_date` ✅
+- [x] Date column (account_status_changed): `created_date` ✅
+- [x] Shipping table columns: `late_shipment_rate_rate`, `valid_tracking_rate_rate`, `pre_fulfillment_cancellation_rate_rate` ✅
+- [x] Policy compliance columns: `food_and_product_safety_issues_defects_count`, `received_intellectual_property_complaints_defects_count` ✅
+- [x] AHR column: `account_health_rating_ahr_status` (in policycompliance table) ✅
+- [x] Account status column: `current_account_status` ✅
+- [~] ODR table — `sellercentral_sellerperformance_customerserviceperformance_report` name is 65 chars (Postgres limit is 63). Run this in pgAdmin to find the actual table name:
+  ```sql
+  SELECT table_name
+  FROM information_schema.tables
+  WHERE table_schema = 'amazon_source_data'
+  AND table_name LIKE 'sellercentral_sellerperformance_c%';
+  ```
+  Alternatively, check if ODR exists in `sellercentral_sellerperformance_report` (row-per-metric table) — run:
+  ```sql
+  SELECT id, status, target_value, defects_count, report_date
+  FROM amazon_source_data.sellercentral_sellerperformance_report
+  WHERE account_id = 2029940
+  ORDER BY report_date DESC
+  LIMIT 20;
+  ```
 
-### Data Team Questions (Postgres)
-- [x] What is the exact Postgres **schema name** for Intentwise-synced tables? → **`amazon_source_data`** (confirmed; also `amazon_marketing_cloud` exists but not used here)
-- [x] What is the **seller identifier column** name? → **`account_id`** (bigint) — confirmed from shipping table
-- [x] What is the **marketplace column** name? → **`country_code`** (varchar) — confirmed from shipping table
-- [x] What is the **date column** name for `ORDER BY`? → **`download_date`** (date) — confirmed from shipping table
-- [ ] Confirm remaining column names (3 tables still unconfirmed — query each in pgAdmin):
-  - [x] `sellercentral_sellerperformance_shippingperformance_report` → `late_shipment_rate_rate`, `valid_tracking_rate_rate`, `pre_fulfillment_cancellation_rate_rate` ✅
-  - [~] `sellercentral_sellerperformance_customerserviceperformance_report` → **TABLE NOT FOUND** — name is 65 chars, Postgres truncates at 63. Ask data team for the actual table name. ODR metric is currently skipped.
-  - [ ] `sellercentral_sellerperformance_policycompliance_report` → confirm: `food_safety_count`, `ip_complaint_count`
-  - [ ] `sellercentral_sellerperformance_report` → confirm: `account_health_rating_ahr_status`
-  - [ ] `sellercentral_account_status_changed_report` → confirm: `account_status`
-- [x] What time does Intentwise **complete its daily sync**? → **6:45 AM PDT. Scheduler set to 7:00 AM PDT (14:00 UTC).**
-- [ ] Are `drive_folder_id` values populated in `walk_the_store.account_config` for active brands?
-
-### walk_the_store Schema (New — Must Be Created Manually)
-- `walk_the_store` schema does **not** exist in Postgres yet.
-- SQL to create it is in `docs/walk_the_store_schema.sql` — run manually in pgAdmin.
-- [ ] Run `docs/walk_the_store_schema.sql` in pgAdmin (creates schema + `account_config` + `daily_health_reports`)
-- [ ] Insert at least 1 test brand row into `walk_the_store.account_config` before running `python main.py`
-
-### Gilbert Questions
-- [ ] Confirm `walk_the_store.account_config` table exists (after running schema SQL above) and has at least 1 test brand row
-- [x] What is the Emplicit **Google Workspace domain**? → **`emplicit.co`** (confirmed)
+### Google Sheets (Brand Config — replaces walk_the_store Postgres schema)
+- [x] Brand Code Mapping Sheet shared with service account ✅
+- [x] People Lookup Sheet shared with service account ✅
+- [ ] Column `iw_account_id` (col S) populated for all active brands in Brand Code Mapping Sheet
 
 ---
 
 ## PART 2 — Google Service Account Setup
 
 - [x] Service account: `polino-agentic-solutions-servi@polino-agentic-solutions.iam.gserviceaccount.com`
-- [x] APIs activated: Google Docs + Google Drive
+- [x] APIs activated: Google Docs, Google Drive, Google Sheets
 - [x] JSON key downloaded and path added to `.env`
 - [x] Brand Drive folders shared with service account (Editor)
+- [x] Both Google Sheets shared with service account (Viewer)
 
 ---
 
@@ -51,6 +57,8 @@ These must be resolved before any live testing. Get these from the data team and
 - [x] `SLACK_BOT_TOKEN` / `SLACK_OPS_CHANNEL`
 - [x] `TEAMWORK_DOMAIN` / `TEAMWORK_API_TOKEN` — Teamwork Collaborator service account
 - [x] `GOOGLE_SERVICE_ACCOUNT_JSON`
+- [x] `BRAND_SHEET_ID`
+- [x] `PEOPLE_SHEET_ID`
 
 ---
 
@@ -58,16 +66,17 @@ These must be resolved before any live testing. Get these from the data team and
 
 Before touching GCP, confirm the agent runs locally end-to-end.
 
-- [ ] `pip install -r requirements.txt`
+- [x] `pip install -r requirements.txt` (gspread installed)
 - [ ] `python main.py`
-- [ ] Verify in output:
-  - [ ] Connects to Postgres — fetches active accounts
-  - [ ] Queries Intentwise-synced tables — pulls metrics
+- [ ] Verify in logs:
+  - [ ] Connects to Google Sheets — loads active brands (check for brand names in logs)
+  - [ ] No "iw_account_id missing" warnings (all brands in sheet have col S populated)
+  - [ ] Queries Intentwise-synced tables — pulls metrics (no column errors)
   - [ ] Classifies severity correctly
-  - [ ] Creates Google Doc — appears in Drive
+  - [ ] Creates Google Doc — appears in shared POC Drive folder
   - [ ] Slack notification sent with Drive link
-  - [ ] Report saved to `walk_the_store.daily_health_reports`
-- [ ] Fix any `#april13 waiting on confirmation` issues found during this run
+  - [ ] `save_report()` fails gracefully — schema not created, confirm error is caught not crashed
+- [ ] Fix ODR once table name is confirmed (see Part 1)
 
 ---
 
@@ -92,7 +101,7 @@ Follow `docs/CLOUD_RUN_DEPLOY.md` steps 3–6:
 
 - [ ] Build and push Docker image: `gcloud builds submit --tag $IMAGE .`
 - [ ] Create Cloud Run Job: `gcloud run jobs create ...`
-- [ ] Set Cloud Scheduler trigger (use sync completion time confirmed in Part 1)
+- [ ] Set Cloud Scheduler trigger (7:00 AM PDT — `0 14 * * *` UTC)
 - [ ] Test manual execution: `gcloud run jobs execute walk-the-store ...`
 - [ ] Verify logs show clean run end-to-end
 

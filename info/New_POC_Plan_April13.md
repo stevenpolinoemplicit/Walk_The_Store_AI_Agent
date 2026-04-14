@@ -1,6 +1,6 @@
 # Walk the Store — POC Build Plan (Final)
 ### April 13–14, 2026
-### Last updated: April 13, 2026 — Session 7
+### Last updated: April 14, 2026 — Session 8
 
 ---
 
@@ -9,11 +9,12 @@
 Daily automated Amazon account health reports for all active Emplicit brands:
 1. **Cloud Scheduler** fires at 7:00 AM PDT (15 min after Intentwise finishes syncing at 6:45 AM PDT)
 2. **Cloud Run Job** spins up, runs `python main.py`, exits
-3. Agent reads health metrics from **Intentwise-synced Postgres tables** (`amazon_source_data`)
-4. Classifies each metric: 🔴 Critical / 🟡 Warning / 🟢 Healthy
-5. Creates a **Google Doc** per brand matching the example PDF format — saved to the brand's Drive folder
-6. Posts a **Slack notification** with severity summary + link to the Drive doc
-7. **Ask Emplicit** (Claude Enterprise, already connected to Drive) answers employee questions automatically
+3. Agent reads brand config from **Google Sheets** (Brand Code Mapping Sheet)
+4. Agent reads health metrics from **Intentwise-synced Postgres tables** (`amazon_source_data`)
+5. Classifies each metric: 🔴 Critical / 🟡 Warning / 🟢 Healthy
+6. Creates a **Google Doc** per brand matching the example PDF format — saved to shared POC Drive folder
+7. Posts a **Slack notification** with severity summary + link to the Drive doc
+8. **Ask Emplicit** (Claude Enterprise, already connected to Drive) answers employee questions automatically
 
 ---
 
@@ -25,16 +26,16 @@ Cloud Scheduler (7:00 AM PDT daily, cron: 0 14 * * *)
   → python main.py
         ↓
   orchestrator.py
-  → postgres.get_active_accounts()        ← walk_the_store.account_config
+  → sheets_reader.get_active_accounts()   ← Brand Code Mapping Sheet (Google Sheets)
   → for each brand:
-      postgres.get_account_health_metrics() ← amazon_source_data (5 tables)
-      teamwork.get_completed_tasks()        ← read-only
+      postgres.get_account_health_metrics() ← amazon_source_data (4 active tables)
+      teamwork.get_completed_tasks_by_list() ← all 12 task lists per brand
       classifier.classify_account()
       report_builder.build_brand_report()
-      report_generator.create_report()     ← Google Doc → brand's Drive folder
+      report_generator.create_report()     ← Google Doc → shared POC Drive folder
       slack_alerts.post_to_channel()       ← brief notification + Drive link
       slack_alerts.send_dm()               ← AM only, critical severity
-      postgres.save_report()               ← walk_the_store.daily_health_reports
+      postgres.save_report()               ← walk_the_store.daily_health_reports (fails gracefully — schema not created for POC)
   → build_ops_summary() → post_ops_summary()
   → exit
 
@@ -107,18 +108,27 @@ For questions, contact your Emplicit account manager.
 | Scheduler time | 7:00 AM PDT (14:00 UTC) | ✅ |
 | Postgres schema (Intentwise data) | `amazon_source_data` | ✅ |
 | Table insert pattern | Append-only (new rows daily) | ✅ |
-| Query pattern | `ORDER BY download_date DESC LIMIT 1` | ✅ |
+| Query pattern | `ORDER BY download_date DESC LIMIT 1` | ✅ (shipping + policycompliance tables) |
 | Emplicit domain | `emplicit.co` | ✅ |
 | Google service account | `polino-agentic-solutions-servi@polino-agentic-solutions.iam.gserviceaccount.com` | ✅ |
 | Ask Emplicit → Drive connected | Yes — zero chat setup needed | ✅ |
 | Teamwork auth | Collaborator service account | ✅ |
 | Seller identifier column | `account_id` (bigint) | ✅ confirmed from shipping table |
 | Marketplace column | `country_code` (varchar) | ✅ confirmed from shipping table |
-| Date column | `download_date` (date) | ✅ confirmed from shipping table |
+| Date column (shipping + policycompliance) | `download_date` (date) | ✅ confirmed |
+| Date column (account_status_changed) | `created_date` | ✅ confirmed from sample data |
 | Late shipment rate column | `late_shipment_rate_rate` (numeric) | ✅ confirmed |
 | Valid tracking rate column | `valid_tracking_rate_rate` (numeric) | ✅ confirmed |
 | Pre-cancel rate column | `pre_fulfillment_cancellation_rate_rate` (numeric) | ✅ confirmed |
-| `walk_the_store` schema | Does NOT exist yet — must be created manually | ⚠️ SQL in `docs/walk_the_store_schema.sql` |
+| Food safety column | `food_and_product_safety_issues_defects_count` | ✅ confirmed |
+| IP complaint column | `received_intellectual_property_complaints_defects_count` | ✅ confirmed |
+| AHR column | `account_health_rating_ahr_status` (in policycompliance table) | ✅ confirmed |
+| Account status column | `current_account_status` | ✅ confirmed from sample data |
+| Account source | Google Sheets — Brand Code Mapping Sheet | ✅ |
+| Brand account_id source | `iw_account_id` column (col S) in Brand Code Mapping Sheet | ✅ |
+| AM Slack ID source | People Lookup Sheet — `am_brands` + `slack_user_id` | ✅ |
+| POC Drive folder (all reports) | `1jsEyn48SYDGxhvAu2-VQve9LP22UNXdp` | ✅ |
+| walk_the_store Postgres schema | NOT NEEDED — replaced by Google Sheets | ✅ |
 
 ---
 
@@ -126,12 +136,7 @@ For questions, contact your Emplicit account manager.
 
 | Item | Owner | Needed for |
 |------|-------|------------|
-| Column names for `sellercentral_sellerperformance_policycompliance_report` | Steven → Data team | food_safety + IP complaint metrics |
-| Column names for `sellercentral_sellerperformance_report` | Steven → Data team | account health rating metric |
-| Column names for `sellercentral_account_status_changed_report` | Steven → Data team | account status metric |
-| ODR table name — `customerserviceperformance` table missing from pgAdmin (65-char name truncated at 63) | Steven → Data team | order_defect_rate metric — commented out in `postgres.py` |
-| Create `walk_the_store` schema + tables | Steven (manual, SQL in `docs/walk_the_store_schema.sql`) | Any accounts to process |
-| Brand Drive folder IDs in `account_config` | Steven → Gilbert | `report_generator.py` folder targeting |
+| ODR table name — `customerserviceperformance` truncated at 63 chars; OR confirm if ODR is in `sellercentral_sellerperformance_report` (row-per-metric table) | Steven → pgAdmin query | order_defect_rate metric — commented out in `postgres.py` |
 
 ---
 
@@ -142,17 +147,18 @@ For questions, contact your Emplicit account manager.
 |------|---------|
 | `main.py` | Entry point — calls `run_agent()` and exits |
 | `Dockerfile` | Python 3.13-slim, no port, `CMD python main.py` |
-| `config/settings.py` | All env vars including `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| `config/settings.py` | All env vars including `BRAND_SHEET_ID`, `PEOPLE_SHEET_ID` |
 | `config/thresholds.py` | Severity cutoffs (Amazon benchmark values) |
-| `models/account.py` | AccountConfig — matches `walk_the_store.account_config` |
+| `models/account.py` | AccountConfig — fields match Google Sheets columns |
 | `models/findings.py` | Finding — one classified metric result |
 | `models/report.py` | HealthReport — full brand snapshot |
 | `controllers/classifier.py` | 8 metric classifiers + severity roll-up |
 | `controllers/report_builder.py` | Assembles HealthReport from Postgres + Teamwork + classifier |
 | `controllers/orchestrator.py` | Main loop — accounts → report → Drive → Slack → Postgres |
-| `tools/postgres.py` | get_active_accounts, get_account_health_metrics, save_report |
+| `tools/sheets_reader.py` | Loads active brands from Google Sheets; reads iw_account_id directly |
+| `tools/postgres.py` | get_account_health_metrics (4 tables), save_report |
 | `tools/report_generator.py` | Creates Google Doc, saves to Drive folder, returns URL |
-| `tools/teamwork.py` | Read-only Teamwork task fetch |
+| `tools/teamwork.py` | get_completed_tasks_by_list — queries all 12 task lists per brand |
 | `tools/slack_alerts.py` | post_to_channel, send_dm, post_ops_summary |
 | `views/slack_formatter.py` | format_notification (POC) + format_brand_report (legacy) |
 | `docs/CLOUD_RUN_DEPLOY.md` | Full Cloud Run Jobs + Cloud Scheduler deploy guide |
@@ -172,25 +178,27 @@ For questions, contact your Emplicit account manager.
 ## Environment Variables
 
 ```
-ANTHROPIC_API_KEY=          ✅ set
-EMPLICIT_PG_HOST=           ✅ set
-EMPLICIT_PG_PORT=5432       ✅ set
-EMPLICIT_PG_DB=             ✅ set
-EMPLICIT_PG_USER=           ✅ set
-EMPLICIT_PG_PASSWORD=       ✅ set
-SLACK_BOT_TOKEN=            ✅ set
-SLACK_OPS_CHANNEL=          ✅ set
-TEAMWORK_DOMAIN=            ✅ set
-TEAMWORK_API_TOKEN=         ✅ set (Collaborator service account)
-GOOGLE_SERVICE_ACCOUNT_JSON= ✅ set
+ANTHROPIC_API_KEY=           ✅ set
+EMPLICIT_PG_HOST=            ✅ set
+EMPLICIT_PG_PORT=5432        ✅ set
+EMPLICIT_PG_DB=              ✅ set
+EMPLICIT_PG_USER=            ✅ set
+EMPLICIT_PG_PASSWORD=        ✅ set
+SLACK_BOT_TOKEN=             ✅ set
+SLACK_OPS_CHANNEL=           ✅ set
+TEAMWORK_DOMAIN=             ✅ set
+TEAMWORK_API_TOKEN=          ✅ set (Collaborator service account)
+GOOGLE_SERVICE_ACCOUNT_JSON= ✅ set (file path)
+BRAND_SHEET_ID=              ✅ set
+PEOPLE_SHEET_ID=             ✅ set
 ```
 
 ---
 
 ## Deployment Steps (remaining)
 
-1. `pip install -r requirements.txt` + `python main.py` — local test run
-2. Confirm Postgres column names + account_config populated
+1. `python main.py` — local test run (gspread already installed)
+2. Resolve ODR metric (pgAdmin query to find table/column)
 3. GCP: enable APIs, Artifact Registry, Secret Manager
 4. `gcloud builds submit --tag $IMAGE .`
 5. `gcloud run jobs create walk-the-store ...`
@@ -220,10 +228,14 @@ Claude Enterprise for chat + LISTEN/NOTIFY trigger + append to single shared Goo
 LISTEN/NOTIFY + Cloud Run `min-instances:1` + Google Doc per brand.
 **Dropped:** Intentwise syncs on a predictable daily schedule — LISTEN/NOTIFY adds complexity for zero benefit. Cloud Scheduler + Cloud Run Jobs is simpler, cheaper (~free vs ~$20/month), and no persistent connection needed.
 
-### Round 5 — Final (current)
-**Cloud Scheduler + Cloud Run Jobs + Google Doc per brand + Ask Emplicit.**
+### Round 5 — Fourth pivot (Session 8)
+Replaced `walk_the_store.account_config` Postgres table with Google Sheets as the brand config source.
+**Reason:** Schema didn't exist, populating it required manual SQL inserts, and the user already had all the data in structured Google Sheets. Sheets are live and shared with the service account.
+
+### Round 6 — Final (current)
+**Cloud Scheduler + Cloud Run Jobs + Google Sheets config + Google Doc per brand + Ask Emplicit.**
 Locked. No further changes planned for POC.
 
 ---
 
-*Plan finalized: April 13, 2026 | Updated through Session 7 | Author: Claude Code + Steven Polino*
+*Plan finalized: April 13, 2026 | Updated through Session 8 | Author: Claude Code + Steven Polino*
