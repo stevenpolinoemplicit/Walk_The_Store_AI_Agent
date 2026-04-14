@@ -60,6 +60,9 @@ echo -n "your-value" | gcloud secrets create SLACK_BOT_TOKEN --data-file=- --pro
 echo -n "your-value" | gcloud secrets create SLACK_OPS_CHANNEL --data-file=- --project=$PROJECT_ID
 echo -n "your-value" | gcloud secrets create TEAMWORK_DOMAIN --data-file=- --project=$PROJECT_ID
 echo -n "your-value" | gcloud secrets create TEAMWORK_API_TOKEN --data-file=- --project=$PROJECT_ID
+echo -n "your-value" | gcloud secrets create BRAND_SHEET_ID --data-file=- --project=$PROJECT_ID
+echo -n "your-value" | gcloud secrets create PEOPLE_SHEET_ID --data-file=- --project=$PROJECT_ID
+
 # For Google service account JSON — store the file contents directly
 gcloud secrets create GOOGLE_SERVICE_ACCOUNT_JSON \
   --data-file=path/to/sa.json --project=$PROJECT_ID
