@@ -16,6 +16,31 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 9 — AHR bug fix, iw_account_id from sheet, doc updates
+**Date:** 2026-04-14
+**Participants:** Claude Code
+
+#### Decisions Made
+- **AHR was querying the wrong table (bug)** — `account_health_rating_ahr_status` is in `sellercentral_sellerperformance_policycompliance_report`, not `sellercentral_sellerperformance_report`; the separate AHR query was silently returning None on every run; merged AHR into the existing policycompliance query
+- **`sellercentral_sellerperformance_report` is a row-per-metric table** — columns are `id`, `status`, `target_value`, `defects_count`, `report_date`; no AHR or ODR percentage columns; `id` is a metric type identifier; ODR may or may not live here — needs pgAdmin investigation
+- **`account_status_changed_report` uses `created_date` not `download_date`** — fixed ORDER BY clause; `download_date` is only confirmed for shipping + policycompliance tables
+- **iw_account_id column added to Brand Code Mapping Sheet (col S)** — user added numeric Intentwise account_id directly to the sheet; eliminated the runtime Postgres MWS → account_id lookup entirely; simpler and eliminates dependency on `account_status_changed_report` having rows for every brand
+- **ODR still unresolved** — original table name is 65 chars (Postgres limit 63); need pgAdmin query to find truncated name OR confirm if row-per-metric `sellerperformance_report` contains ODR by a specific `id` value
+
+#### Files Updated
+- `tools/sheets_reader.py` — removed `_resolve_account_id()` and `get_connection` import; now reads `iw_account_id` (col S) directly from sheet; simpler and more reliable
+- `tools/postgres.py` — merged `account_health_rating_ahr_status` into policycompliance query (was querying wrong table); fixed `account_status_changed_report` ORDER BY to use `created_date`
+- `info/New_POC_Plan_April13.md` — full update: architecture diagram, confirmed facts table, files list, env vars, deployment steps, Round 5 pivot note
+- `info/SETUP.md` — all resolved items checked off; walk_the_store schema section removed; Google Sheets section added; ODR pgAdmin queries documented
+
+#### Still To Do
+- [ ] Populate `iw_account_id` (col S) for all active brands in Brand Code Mapping Sheet
+- [ ] ODR: run pgAdmin query to find truncated table name or identify ODR row in `sellerperformance_report`
+- [ ] Local test: `python main.py`
+- [ ] GCP deployment (Parts 5–6 of SETUP.md)
+
+---
+
 ### Session 8 — Pre-test audit, Google Sheets account source, column fixes
 **Date:** 2026-04-14
 **Participants:** Claude Code
