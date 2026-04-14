@@ -15,6 +15,7 @@ from controllers.report_builder import build_brand_report, build_ops_summary
 from models.account import AccountConfig
 from models.report import HealthReport
 from tools import postgres, slack_alerts
+from tools import sheets_reader
 from views.slack_formatter import format_notification
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ def _route_alerts(
             )
             if drive_url:
                 dm_text += f"\n📄 <{drive_url}|View Full Report>"
-            slack_alerts.send_dm(account.account_manager_slack_id, dm_text)
+            slack_alerts.send_dm(account.am_slack_id, dm_text)
         except Exception as e:
             logger.error(f"[{report.brand_name}] Failed to send DM to AM: {e}")
 
@@ -53,9 +54,9 @@ def _route_alerts(
 def run_agent() -> None:
     logger.info("Orchestrator starting")
 
-    # --- Fetch active accounts ---
+    # --- Fetch active accounts from Google Sheets ---
     try:
-        accounts: List[AccountConfig] = postgres.get_active_accounts()
+        accounts: List[AccountConfig] = sheets_reader.get_active_accounts()
         logger.info(f"Found {len(accounts)} active accounts")
     except Exception as e:
         logger.error(f"Failed to fetch accounts — aborting run: {e}")
