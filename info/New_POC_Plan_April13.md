@@ -105,13 +105,20 @@ For questions, contact your Emplicit account manager.
 |------|-------|-----------|
 | Intentwise sync completes | 6:45 AM PDT | ✅ |
 | Scheduler time | 7:00 AM PDT (14:00 UTC) | ✅ |
-| Postgres schema | `amazon_source_data` | ✅ |
+| Postgres schema (Intentwise data) | `amazon_source_data` | ✅ |
 | Table insert pattern | Append-only (new rows daily) | ✅ |
-| Query pattern | `ORDER BY date DESC LIMIT 1` | ✅ |
+| Query pattern | `ORDER BY download_date DESC LIMIT 1` | ✅ |
 | Emplicit domain | `emplicit.co` | ✅ |
 | Google service account | `polino-agentic-solutions-servi@polino-agentic-solutions.iam.gserviceaccount.com` | ✅ |
 | Ask Emplicit → Drive connected | Yes — zero chat setup needed | ✅ |
 | Teamwork auth | Collaborator service account | ✅ |
+| Seller identifier column | `account_id` (bigint) | ✅ confirmed from shipping table |
+| Marketplace column | `country_code` (varchar) | ✅ confirmed from shipping table |
+| Date column | `download_date` (date) | ✅ confirmed from shipping table |
+| Late shipment rate column | `late_shipment_rate_rate` (numeric) | ✅ confirmed |
+| Valid tracking rate column | `valid_tracking_rate_rate` (numeric) | ✅ confirmed |
+| Pre-cancel rate column | `pre_fulfillment_cancellation_rate_rate` (numeric) | ✅ confirmed |
+| `walk_the_store` schema | Does NOT exist yet — must be created manually | ⚠️ SQL in `docs/walk_the_store_schema.sql` |
 
 ---
 
@@ -119,8 +126,11 @@ For questions, contact your Emplicit account manager.
 
 | Item | Owner | Needed for |
 |------|-------|------------|
-| Postgres column names (seller_id col, marketplace col, date col, 8 metric cols) | Steven → Data team | `tools/postgres.py` |
-| `walk_the_store.account_config` active + populated | Steven → Gilbert | Any accounts to process |
+| Column names for `sellercentral_sellerperformance_policycompliance_report` | Steven → Data team | food_safety + IP complaint metrics |
+| Column names for `sellercentral_sellerperformance_report` | Steven → Data team | account health rating metric |
+| Column names for `sellercentral_account_status_changed_report` | Steven → Data team | account status metric |
+| ODR table name — `customerserviceperformance` table missing from pgAdmin (65-char name truncated at 63) | Steven → Data team | order_defect_rate metric — commented out in `postgres.py` |
+| Create `walk_the_store` schema + tables | Steven (manual, SQL in `docs/walk_the_store_schema.sql`) | Any accounts to process |
 | Brand Drive folder IDs in `account_config` | Steven → Gilbert | `report_generator.py` folder targeting |
 
 ---

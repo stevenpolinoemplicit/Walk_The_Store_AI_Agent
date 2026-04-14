@@ -11,20 +11,26 @@ These must be resolved before any live testing. Get these from the data team and
 
 ### Data Team Questions (Postgres)
 - [x] What is the exact Postgres **schema name** for Intentwise-synced tables? → **`amazon_source_data`** (confirmed; also `amazon_marketing_cloud` exists but not used here)
-- [ ] What is the **seller identifier column** name in each table? (assumed: `seller_id`)
-- [ ] What is the **marketplace column** name in each table? (assumed: `marketplace`)
-- [ ] What is the **date column** name used for `ORDER BY` in each table? (assumed: `date`)
-- [ ] Confirm column names in each of these 5 tables:
-  - `sellercentral_sellerperformance_shippingperformance_report` — cols: `late_shipment_rate`, `valid_tracking_rate`, `pre_fulfillment_cancel_rate`
-  - `sellercentral_sellerperformance_customerserviceperformance_report` — col: `order_defect_rate`
-  - `sellercentral_sellerperformance_policycompliance_report` — cols: `food_safety_count`, `ip_complaint_count`
-  - `sellercentral_sellerperformance_report` — col: `account_health_rating_ahr_status`
-  - `sellercentral_account_status_changed_report` — col: `account_status`
+- [x] What is the **seller identifier column** name? → **`account_id`** (bigint) — confirmed from shipping table
+- [x] What is the **marketplace column** name? → **`country_code`** (varchar) — confirmed from shipping table
+- [x] What is the **date column** name for `ORDER BY`? → **`download_date`** (date) — confirmed from shipping table
+- [ ] Confirm remaining column names (3 tables still unconfirmed — query each in pgAdmin):
+  - [x] `sellercentral_sellerperformance_shippingperformance_report` → `late_shipment_rate_rate`, `valid_tracking_rate_rate`, `pre_fulfillment_cancellation_rate_rate` ✅
+  - [~] `sellercentral_sellerperformance_customerserviceperformance_report` → **TABLE NOT FOUND** — name is 65 chars, Postgres truncates at 63. Ask data team for the actual table name. ODR metric is currently skipped.
+  - [ ] `sellercentral_sellerperformance_policycompliance_report` → confirm: `food_safety_count`, `ip_complaint_count`
+  - [ ] `sellercentral_sellerperformance_report` → confirm: `account_health_rating_ahr_status`
+  - [ ] `sellercentral_account_status_changed_report` → confirm: `account_status`
 - [x] What time does Intentwise **complete its daily sync**? → **6:45 AM PDT. Scheduler set to 7:00 AM PDT (14:00 UTC).**
 - [ ] Are `drive_folder_id` values populated in `walk_the_store.account_config` for active brands?
 
+### walk_the_store Schema (New — Must Be Created Manually)
+- `walk_the_store` schema does **not** exist in Postgres yet.
+- SQL to create it is in `docs/walk_the_store_schema.sql` — run manually in pgAdmin.
+- [ ] Run `docs/walk_the_store_schema.sql` in pgAdmin (creates schema + `account_config` + `daily_health_reports`)
+- [ ] Insert at least 1 test brand row into `walk_the_store.account_config` before running `python main.py`
+
 ### Gilbert Questions
-- [ ] Confirm `walk_the_store.account_config` table is active and has at least 1 test brand row
+- [ ] Confirm `walk_the_store.account_config` table exists (after running schema SQL above) and has at least 1 test brand row
 - [x] What is the Emplicit **Google Workspace domain**? → **`emplicit.co`** (confirmed)
 
 ---
