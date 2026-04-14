@@ -1,7 +1,7 @@
 # STOP - DONT CREATE A NEW DB - CREATE A NON STATIC TABLE that pulls from JOINS FILTERS from multiple tables. its still a table you can query.
-# # Three jobs: (1) get_active_accounts() — reads walk_the_store.account_config to get the brand list. (2) get_account_health_metrics() — queries 5 Intentwise-synced tables in      
-# amazon_source_data to get the 8 health metrics for one seller. Each table query is isolated so one failure doesn't block the others. (3) save_report() — writes the
-# completed HealthReport to walk_the_store.daily_health_reports.
+# # Two jobs: (1) get_account_health_metrics() — queries 5 Intentwise-synced tables in
+# amazon_source_data to get the 8 health metrics for one seller. Each table query is isolated so one failure doesn't block the others. (2) save_report() — writes the
+# completed HealthReport to walk_the_store.daily_health_reports (will fail gracefully for POC — schema not created).
 # ---
 # postgres.py — Emplicit PostgreSQL client.
 # Provides: fetch active accounts, fetch account health metrics from Intentwise-synced tables,
@@ -16,7 +16,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from config import settings
-from models.account import AccountConfig
 from models.report import HealthReport
 
 logger = logging.getLogger(__name__)
@@ -38,26 +37,11 @@ def get_connection() -> psycopg2.extensions.connection:
         raise
 
 
-# #note: Returns all rows from walk_the_store.account_config where is_active = true
-def get_active_accounts() -> List[AccountConfig]:
-    try:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    "SELECT * FROM walk_the_store.account_config WHERE is_active = TRUE"
-                )
-                rows = cur.fetchall()
-                return [AccountConfig(**row) for row in rows]
-    except Exception as e:
-        logger.error(f"Failed to fetch active accounts: {e}")
-        raise
-
-
 # #note: Inserts one completed HealthReport into walk_the_store.daily_health_reports
 def save_report(report: HealthReport) -> None:
     sql = """
         INSERT INTO walk_the_store.daily_health_reports (
-            account_config_id,
+            brand_code,
             report_date,
             highest_severity,
             findings,
@@ -80,7 +64,7 @@ def save_report(report: HealthReport) -> None:
                 cur.execute(
                     sql,
                     (
-                        report.account_config_id,
+                        report.brand_code,
                         report.report_date,
                         report.highest_severity,
                         json.dumps([f.model_dump() for f in report.findings]),
@@ -97,7 +81,7 @@ def save_report(report: HealthReport) -> None:
                 )
             conn.commit()
         logger.info(
-            f"Saved report for account_config_id={report.account_config_id} date={report.report_date}"
+            f"Saved report for brand_code={report.brand_code} date={report.report_date}"
         )
     except Exception as e:
         logger.error(f"Failed to save report for {report.brand_name}: {e}")
@@ -171,12 +155,12 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                 #     logger.warning(f"Customer service metrics query failed for {account_id}: {e}")
 
                 # Policy compliance — food safety and IP complaints
-                # april14 waiting on confirmation - confirm exact column names in this table
-                #   (assumed: food_safety_count, ip_complaint_count — update if different)
+                # CONFIRMED column names from information_schema query on this table
                 try:
                     cur.execute(
                         """
-                        SELECT food_safety_count, ip_complaint_count
+                        SELECT food_and_product_safety_issues_defects_count,
+                               received_intellectual_property_complaints_defects_count
                         FROM amazon_source_data.sellercentral_sellerperformance_policycompliance_report
                         WHERE account_id = %s AND country_code = %s
                         ORDER BY download_date DESC LIMIT 1
@@ -185,8 +169,12 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                     )
                     row = cur.fetchone()
                     if row:
-                        metrics["food_safety_count"] = row.get("food_safety_count")
-                        metrics["ip_complaint_count"] = row.get("ip_complaint_count")
+                        metrics["food_safety_count"] = row.get(
+                            "food_and_product_safety_issues_defects_count"
+                        )
+                        metrics["ip_complaint_count"] = row.get(
+                            "received_intellectual_property_complaints_defects_count"
+                        )
                 except Exception as e:
                     logger.warning(f"Policy metrics query failed for {account_id}: {e}")
 
@@ -212,12 +200,12 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                     logger.warning(f"Seller performance query failed for {account_id}: {e}")
 
                 # Account status
-                # april14 waiting on confirmation - confirm column name for account status in this table
-                #   (assumed: account_status — confirm expected values e.g. 'NORMAL', 'AT_RISK', 'DEACTIVATED')
+                # CONFIRMED column name from amazon_source_data.sellercentral_account_status_changed_report sample data
+                # Values observed: 'NORMAL', 'AT_RISK'
                 try:
                     cur.execute(
                         """
-                        SELECT account_status
+                        SELECT current_account_status
                         FROM amazon_source_data.sellercentral_account_status_changed_report
                         WHERE account_id = %s AND country_code = %s
                         ORDER BY download_date DESC LIMIT 1
@@ -226,7 +214,7 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                     )
                     row = cur.fetchone()
                     if row:
-                        metrics["account_status"] = row.get("account_status")
+                        metrics["account_status"] = row.get("current_account_status")
                 except Exception as e:
                     logger.warning(f"Account status query failed for {account_id}: {e}")
 
