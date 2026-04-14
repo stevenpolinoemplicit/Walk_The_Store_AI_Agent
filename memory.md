@@ -16,6 +16,44 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 8 — Pre-test audit, Google Sheets account source, column fixes
+**Date:** 2026-04-14
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Replace walk_the_store Postgres schema with Google Sheets** — user already has Brand Code Mapping Sheet and People Lookup Sheet with all brand config data; creating a new Postgres schema + populating it manually is unnecessary overhead for POC; sheets_reader.py replaces postgres.get_active_accounts() entirely
+- **account_id resolved at runtime via Postgres lookup** — sheets have MWS seller IDs (bare, e.g. A2M0WKTGB6GQB6); Intentwise tables use numeric bigint account_id; `account_status_changed_report` has both columns and is used as the bridge; DB stores MWS IDs with `_com` suffix so lookup appends it
+- **drive_folder_id hardcoded for POC** — all reports go to shared folder `1jsEyn48SYDGxhvAu2-VQve9LP22UNXdp`; per-brand folders deferred to v2
+- **AM Slack ID lookup from People Lookup Sheet** — `am_brands` column is comma+space separated brand_codes; `slack_user_id` column is the Slack ID; sheet tab gid=2056938022
+- **Teamwork: switch from project-based to task-list-based** — Brand Code Mapping Sheet has 12 individual tw_*_task_list IDs per brand (not project IDs); new get_completed_tasks_by_list() function added; report_builder loops over all 12
+- **3 Postgres column names confirmed and fixed** — food_safety_count → food_and_product_safety_issues_defects_count; ip_complaint_count → received_intellectual_property_complaints_defects_count; account_status → current_account_status; account_health_rating_ahr_status was already correct
+- **GOOGLE_SERVICE_ACCOUNT_JSON confirmed as file path** — from_service_account_file() in report_generator.py is correct; april13 ambiguity resolved
+
+#### Files Created
+- `tools/sheets_reader.py` — reads Brand Code Mapping + People Lookup sheets; resolves account_id; returns List[AccountConfig]
+
+#### Files Updated
+- `models/account.py` — full rewrite; new fields match Google Sheets columns; removed id/teamwork_project_id/is_active; added brand_code/mws_seller_id/am_slack_id/tw_task_lists
+- `models/report.py` — account_config_id: int → brand_code: str
+- `tools/postgres.py` — removed get_active_accounts(); fixed 3 column names; updated save_report() field reference and log line
+- `tools/teamwork.py` — added get_completed_tasks_by_list(task_list_id)
+- `controllers/report_builder.py` — account_id None guard; loop over tw_task_lists instead of single project ID; brand_code in HealthReport constructor
+- `controllers/orchestrator.py` — sheets_reader.get_active_accounts() replaces postgres; account.am_slack_id replaces account.account_manager_slack_id
+- `config/settings.py` — added BRAND_SHEET_ID, PEOPLE_SHEET_ID; fixed april13 comment
+- `requirements.txt` — added gspread
+- `.env.example` — added BRAND_SHEET_ID, PEOPLE_SHEET_ID; fixed stale comment
+
+#### Still To Do
+- [ ] `pip install gspread` (new dependency — not yet installed in venv)
+- [ ] Add `BRAND_SHEET_ID` and `PEOPLE_SHEET_ID` to `.env`
+- [ ] Enable Google Sheets API in GCP Console for `polino-agentic-solutions` project (service account currently only has Docs + Drive)
+- [ ] Confirm all active brands have at least one row in `account_status_changed_report` — if a brand has never had a status change event, account_id lookup returns None and brand is skipped entirely
+- [ ] ODR query still commented out — need truncated table name from pgAdmin (original name is 65 chars; Postgres truncates at 63); query: `SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'sellercentral_sellerperformance_customer%'`
+- [ ] Local test: `python main.py` — verify brands load, metrics return, Slack fires, Drive doc created
+- [ ] GCP deployment (Parts 5–6 of SETUP.md)
+
+---
+
 ### Session 7 — Credentials complete, ready for local test
 **Date:** 2026-04-13
 **Participants:** Claude Code
