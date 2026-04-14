@@ -49,3 +49,13 @@ def send_dm(user_id: str, text: str) -> None:
 # #note: Posts the cross-brand daily summary to the ops channel defined in .env
 def post_ops_summary(text: str, blocks: Optional[list] = None) -> None:
     post_to_channel(settings.SLACK_OPS_CHANNEL, text, blocks)
+
+
+# #note: Posts a formatted error alert to the ops channel — never raises so it cannot crash the agent
+def notify_error(source: str, message: str) -> None:
+    text = f":warning: *Walk the Store — Agent Error*\n*Source:* {source}\n{message}"
+    try:
+        post_to_channel(settings.SLACK_OPS_CHANNEL, text)
+        logger.info(f"Error notification sent to ops channel — source: {source}")
+    except Exception as e:
+        logger.error(f"Failed to send error notification to Slack: {e}")
