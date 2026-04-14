@@ -1,5 +1,0 @@
-# intentwise_preferences.yaml — DEPRECATED
-# Direct Intentwise MCP integration has been removed.
-# Intentwise syncs Amazon account data directly to the Emplicit Postgres database.
-# This file is preserved per project no-delete policy.
-preferences: {}
