@@ -1,0 +1,2 @@
+"account_name"	"account_id"	"country_code"	"mws_seller_id"	"event_id"	"marketplace_id"	"previous_account_status"	"current_account_status"	"account_timezone"	"publish_time"	"event_time"	"created_date"
+"Grubbly Farms Seller US"	2625280	"US"	"A2M0WKTGB6GQB6_com"	"699e089f-7216-4daf-b0ea-3eb99847f871_A2M0WKTGB6GQB6_ATVPDKIKX0DER_20260409002814"	"ATVPDKIKX0DER"	"AT_RISK"	"NORMAL"	"America/Los_Angeles"	"2026-04-09 00:28:14.497"	"2026-04-09 00:28:14.497"	"2026-04-09"
