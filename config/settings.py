@@ -33,7 +33,11 @@ TEAMWORK_DOMAIN: str = os.environ["TEAMWORK_DOMAIN"]
 TEAMWORK_API_TOKEN: str = os.environ["TEAMWORK_API_TOKEN"]
 
 # --- Google ---
-# #note: Path to the Google service account JSON file — needs Drive + Docs scopes
-# april13 waiting on confirmation - confirm whether this is a file path or raw JSON string;
-# if raw JSON, report_generator.py must switch to from_service_account_info() instead of from_service_account_file()
+# #note: Path to the Google service account JSON file — needs Drive + Docs + Sheets scopes
+# CONFIRMED: value is a file path (e.g. "walk the store service account key.json") — from_service_account_file() is correct
 GOOGLE_SERVICE_ACCOUNT_JSON: str = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
+
+# --- Google Sheets ---
+# #note: Sheet IDs for brand config and people lookup — used by sheets_reader.py at agent startup
+BRAND_SHEET_ID: str = os.environ["BRAND_SHEET_ID"]
+PEOPLE_SHEET_ID: str = os.environ["PEOPLE_SHEET_ID"]
