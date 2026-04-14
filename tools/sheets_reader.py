@@ -7,10 +7,10 @@ import logging
 from typing import List, Optional
 
 import gspread
-from google.oauth2.service_account import Credentials
 
 from config import settings
 from models.account import AccountConfig
+from tools.google_auth import get_service_account_credentials
 from tools.slack_alerts import notify_error
 
 logger = logging.getLogger(__name__)
@@ -42,11 +42,9 @@ _TW_COLUMNS = [
 _PEOPLE_SHEET_GID = 2056938022
 
 
-# #note: Authenticates with Google using the service account file path from settings
+# #note: Authenticates with Google using the shared credential helper — works locally (file path) and on Cloud Run (JSON string)
 def _get_gspread_client() -> gspread.Client:
-    creds = Credentials.from_service_account_file(
-        settings.GOOGLE_SERVICE_ACCOUNT_JSON, scopes=_SCOPES
-    )
+    creds = get_service_account_credentials(_SCOPES)
     return gspread.Client(auth=creds)
 
 
