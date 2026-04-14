@@ -154,13 +154,15 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                 # except Exception as e:
                 #     logger.warning(f"Customer service metrics query failed for {account_id}: {e}")
 
-                # Policy compliance — food safety and IP complaints
-                # CONFIRMED column names from information_schema query on this table
+                # Policy compliance + account health rating — all three confirmed in information_schema
+                # CONFIRMED: account_health_rating_ahr_status is in THIS table (not sellerperformance_report)
+                # sellerperformance_report is a row-per-metric table with different structure — not used for AHR
                 try:
                     cur.execute(
                         """
                         SELECT food_and_product_safety_issues_defects_count,
-                               received_intellectual_property_complaints_defects_count
+                               received_intellectual_property_complaints_defects_count,
+                               account_health_rating_ahr_status
                         FROM amazon_source_data.sellercentral_sellerperformance_policycompliance_report
                         WHERE account_id = %s AND country_code = %s
                         ORDER BY download_date DESC LIMIT 1
@@ -175,40 +177,22 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                         metrics["ip_complaint_count"] = row.get(
                             "received_intellectual_property_complaints_defects_count"
                         )
-                except Exception as e:
-                    logger.warning(f"Policy metrics query failed for {account_id}: {e}")
-
-                # Seller performance — account health rating
-                # april14 waiting on confirmation - confirm column name for AHR score in this table
-                #   (assumed: account_health_rating_ahr_status — update if different; confirm numeric vs string)
-                try:
-                    cur.execute(
-                        """
-                        SELECT account_health_rating_ahr_status
-                        FROM amazon_source_data.sellercentral_sellerperformance_report
-                        WHERE account_id = %s AND country_code = %s
-                        ORDER BY download_date DESC LIMIT 1
-                        """,
-                        (account_id, country_code),
-                    )
-                    row = cur.fetchone()
-                    if row:
                         metrics["account_health_rating"] = row.get(
                             "account_health_rating_ahr_status"
                         )
                 except Exception as e:
-                    logger.warning(f"Seller performance query failed for {account_id}: {e}")
+                    logger.warning(f"Policy/AHR metrics query failed for {account_id}: {e}")
 
                 # Account status
-                # CONFIRMED column name from amazon_source_data.sellercentral_account_status_changed_report sample data
-                # Values observed: 'NORMAL', 'AT_RISK'
+                # CONFIRMED column name from sample data — values observed: 'NORMAL', 'AT_RISK'
+                # date column is created_date (not download_date — this table has no download_date)
                 try:
                     cur.execute(
                         """
                         SELECT current_account_status
                         FROM amazon_source_data.sellercentral_account_status_changed_report
                         WHERE account_id = %s AND country_code = %s
-                        ORDER BY download_date DESC LIMIT 1
+                        ORDER BY created_date DESC LIMIT 1
                         """,
                         (account_id, country_code),
                     )
