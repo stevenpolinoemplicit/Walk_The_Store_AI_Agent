@@ -1,7 +1,7 @@
 # STOP - DONT CREATE A NEW DB - CREATE A NON STATIC TABLE that pulls from JOINS FILTERS from multiple tables. its still a table you can query.
 # # Two jobs: (1) get_account_health_metrics() — queries 5 Intentwise-synced tables in
 # amazon_source_data to get the 8 health metrics for one seller. Each table query is isolated so one failure doesn't block the others. (2) save_report() — writes the
-# completed HealthReport to walk_the_store.daily_health_reports (will fail gracefully for POC — schema not created).
+# completed HealthReport to walk_the_store.daily_health_reports (schema created — upserts on brand_code + report_date).
 # ---
 # postgres.py — Emplicit PostgreSQL client.
 # Provides: fetch active accounts, fetch account health metrics from Intentwise-synced tables,
@@ -57,6 +57,18 @@ def save_report(report: HealthReport) -> None:
         ) VALUES (
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
         )
+        ON CONFLICT (brand_code, report_date) DO UPDATE SET
+            highest_severity    = EXCLUDED.highest_severity,
+            findings            = EXCLUDED.findings,
+            late_shipment_rate  = EXCLUDED.late_shipment_rate,
+            valid_tracking_rate = EXCLUDED.valid_tracking_rate,
+            pre_cancel_rate     = EXCLUDED.pre_cancel_rate,
+            order_defect_rate   = EXCLUDED.order_defect_rate,
+            account_health_rating = EXCLUDED.account_health_rating,
+            account_status      = EXCLUDED.account_status,
+            food_safety_count   = EXCLUDED.food_safety_count,
+            ip_complaint_count  = EXCLUDED.ip_complaint_count,
+            data_gaps           = EXCLUDED.data_gaps
     """
     try:
         with get_connection() as conn:
