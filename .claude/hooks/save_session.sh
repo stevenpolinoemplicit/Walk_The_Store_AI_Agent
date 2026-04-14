@@ -1,6 +1,6 @@
 #!/bin/bash
 INPUT=$(cat)
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id')
+SESSION_ID=$(echo "$INPUT" | python -c "import sys,json; print(json.load(sys.stdin).get('session_id',''))" 2>/dev/null)
 
 if [ -n "$SESSION_ID" ] && [ "$SESSION_ID" != "null" ]; then
   TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -9,8 +9,21 @@ if [ -n "$SESSION_ID" ] && [ "$SESSION_ID" != "null" ]; then
   SUMMARY=""
   TRANSCRIPT="$HOME/.claude/projects/C--Users-stpol-OneDrive-Desktop-Walk-The-Store-AI-Agent/${SESSION_ID}.jsonl"
   if [ -f "$TRANSCRIPT" ]; then
-    SUMMARY=$(jq -r 'select(.role == "user") | .content | if type == "array" then .[0].text else . end' "$TRANSCRIPT" 2>/dev/null \
-      | head -1 | tr -d '\n' | cut -c1-120)
+    SUMMARY=$(python -c "
+import sys, json
+try:
+    lines = open('$TRANSCRIPT').readlines()
+    for line in lines:
+        try:
+            obj = json.loads(line)
+            if obj.get('role') == 'user':
+                c = obj.get('content', '')
+                t = c[0]['text'] if isinstance(c, list) else c
+                print(str(t)[:120])
+                break
+        except: pass
+except: pass
+" 2>/dev/null | tr -d '\n')
   fi
 
   # Build entry line with optional summary
