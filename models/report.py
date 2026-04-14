@@ -10,7 +10,7 @@ from models.findings import Finding
 
 # #note: Full daily health snapshot for one account — all metric values, findings, and metadata
 class HealthReport(BaseModel):
-    account_config_id: int
+    brand_code: str
     brand_name: str
     report_date: date
     highest_severity: str               # rolled-up worst severity across all findings
