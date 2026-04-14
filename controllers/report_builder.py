@@ -41,22 +41,33 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
     data_gaps: list[str] = []
 
     # Fetch all health metrics from Intentwise-synced Postgres tables
+    # Guard: account_id is resolved at startup — if None, the brand was skipped during load,
+    # but guard here as a safety net in case AccountConfig is constructed elsewhere
     metrics_raw: dict = {}
-    try:
-        metrics_raw = postgres.get_account_health_metrics(
-            account.account_id, account.country_code
-        )
-    except Exception:
-        logger.warning(f"[{brand}] Health metrics unavailable — logged as gap")
+    if account.account_id is None:
+        logger.warning(f"[{brand}] account_id not resolved — skipping health metrics")
         data_gaps.append("account_health_metrics")
+    else:
+        try:
+            metrics_raw = postgres.get_account_health_metrics(
+                account.account_id, account.country_code
+            )
+        except Exception:
+            logger.warning(f"[{brand}] Health metrics unavailable — logged as gap")
+            data_gaps.append("account_health_metrics")
 
-    # Teamwork: completed tasks
+    # Teamwork: completed tasks — iterate all task lists for this brand and aggregate results
     completed_tasks: list[dict] = []
-    try:
-        completed_tasks = teamwork.get_completed_tasks(account.teamwork_project_id)
-    except Exception:
-        logger.warning(f"[{brand}] Teamwork data unavailable — continuing without it")
-        data_gaps.append("teamwork")
+    for dept, list_id in account.tw_task_lists.items():
+        if not list_id:
+            continue
+        try:
+            tasks = teamwork.get_completed_tasks_by_list(list_id)
+            completed_tasks.extend(tasks)
+        except Exception:
+            logger.warning(f"[{brand}] Teamwork list '{dept}' unavailable — skipping")
+            if "teamwork" not in data_gaps:
+                data_gaps.append("teamwork")
 
     # Brand context not implemented in v1
     brand_ctx: Optional[str] = None
@@ -77,7 +88,7 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
     findings, highest_severity = classify_account(metrics)
 
     return HealthReport(
-        account_config_id=account.id,
+        brand_code=account.brand_code,
         brand_name=brand,
         report_date=date.today(),
         highest_severity=highest_severity,
