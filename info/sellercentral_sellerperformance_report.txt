@@ -1,0 +1,2 @@
+"account_name"	"account_id"	"country_code"	"id"	"reporting_date_from"	"reporting_date_to"	"status"	"target_value"	"target_condition"	"defects_count"	"report_date"
+"Infinite Age US"	2029940	"US"	2375170	"2024-04-11 05:30:00+05:30"	"2024-04-10 05:29:59+05:30"	"GOOD"	0.000000	"EQUALS"	2	"2024-04-08"
