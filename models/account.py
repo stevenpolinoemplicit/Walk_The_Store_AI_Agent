@@ -1,18 +1,22 @@
-# account.py — Pydantic model for a single brand/account row from walk_the_store.account_config.
-# Used by postgres.py to deserialize DB rows, and by the orchestrator to iterate active accounts.
+# account.py — Pydantic model for a single brand/account loaded from Google Sheets.
+# Replaces the previous Postgres-backed AccountConfig. Fields map directly to the
+# Brand Code Mapping Sheet columns, with AM Slack ID resolved from the People Lookup Sheet.
 
 from typing import Optional
 from pydantic import BaseModel
 
+# #note: Shared Drive folder where all POC reports are saved — one folder for all brands
+POC_DRIVE_FOLDER_ID = "1jsEyn48SYDGxhvAu2-VQve9LP22UNXdp"
 
-# #note: Mirrors the walk_the_store.account_config table schema; one instance per active brand
+
+# #note: Represents one active brand — loaded from Google Sheets at agent startup
 class AccountConfig(BaseModel):
-    id: int
-    brand_name: str
-    account_id: int                        # CONFIRMED: matches bigint account_id in Intentwise tables
-    country_code: str                      # CONFIRMED: matches country_code varchar in Intentwise tables
-    slack_channel_id: str
-    teamwork_project_id: str
-    account_manager_slack_id: str
-    drive_folder_id: Optional[str] = None
-    is_active: bool = True
+    brand_code: str                             # sheet: brand_code — unique identifier
+    brand_name: str                             # sheet: brand_name — display name for reports
+    mws_seller_id: str                          # sheet: seller_id — bare MWS string (e.g. A2M0WKTGB6GQB6)
+    account_id: Optional[int] = None            # resolved at startup via Postgres account_status_changed_report
+    country_code: str = "US"                    # hardcoded for POC — all brands are US marketplace
+    slack_channel_id: str                       # sheet: internal_brand_slack_id
+    am_slack_id: Optional[str] = None           # People Lookup sheet: slack_user_id for this brand's AM
+    drive_folder_id: str = POC_DRIVE_FOLDER_ID  # shared POC Drive folder for all reports
+    tw_task_lists: dict[str, Optional[str]] = {}  # all 12 tw_*_task_list IDs, keyed by dept name
