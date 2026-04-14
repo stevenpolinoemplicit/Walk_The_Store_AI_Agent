@@ -5,6 +5,7 @@
 #.env file is where you store all private keys, document IDs for functions, and API Keys. mandatory or your Keys will be exposed to internet and I will deactivate them. 
 .env
 .env.local
+walk the store service account key.json
 
 # Python
 .venv/
