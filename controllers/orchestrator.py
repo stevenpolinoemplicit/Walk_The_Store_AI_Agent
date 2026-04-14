@@ -12,6 +12,7 @@ import logging
 from typing import List, Optional
 
 from controllers.report_builder import build_brand_report, build_ops_summary
+from config import settings
 from models.account import AccountConfig
 from models.report import HealthReport
 from tools import postgres, slack_alerts
@@ -37,6 +38,14 @@ def _route_alerts(
             )
         except Exception as e:
             logger.error(f"[{report.brand_name}] Failed to post channel alert: {e}")
+
+        # #note: DM always-notify users on every warning or critical brand alert
+        for user_id in settings.NOTIFY_ALWAYS_IDS:
+            try:
+                text, blocks = format_notification(report, drive_url)
+                slack_alerts.send_dm(user_id, text)
+            except Exception as e:
+                logger.error(f"[{report.brand_name}] Failed to DM always-notify user {user_id}: {e}")
 
     if report.highest_severity == "critical":
         try:
@@ -108,6 +117,13 @@ def run_agent() -> None:
             logger.info("Ops summary posted to Slack")
         except Exception as e:
             logger.error(f"Failed to post ops summary: {e}")
+
+        # #note: DM always-notify users the full ops summary after every run
+        for user_id in settings.NOTIFY_ALWAYS_IDS:
+            try:
+                slack_alerts.send_dm(user_id, summary)
+            except Exception as e:
+                logger.error(f"Failed to DM ops summary to always-notify user {user_id}: {e}")
     else:
         logger.warning("No reports completed — ops summary skipped")
 
