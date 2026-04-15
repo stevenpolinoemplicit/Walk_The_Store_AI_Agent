@@ -3,39 +3,49 @@ INPUT=$(cat)
 SESSION_ID=$(echo "$INPUT" | python -c "import sys,json; print(json.load(sys.stdin).get('session_id',''))" 2>/dev/null)
 
 if [ -n "$SESSION_ID" ] && [ "$SESSION_ID" != "null" ]; then
-  TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  export SESSION_ID
+  export RESUME_FILE="claude_resume"
 
-  # Attempt to pull the first user message from the session JSONL as a summary
-  SUMMARY=""
-  TRANSCRIPT="$HOME/.claude/projects/C--Users-stpol-OneDrive-Desktop-Walk-The-Store-AI-Agent/${SESSION_ID}.jsonl"
-  if [ -f "$TRANSCRIPT" ]; then
-    SUMMARY=$(python -c "
-import sys, json
+  python -c "
+import os, re
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+session_id = os.environ['SESSION_ID']
+resume_file = os.environ['RESUME_FILE']
+now = datetime.now(ZoneInfo('America/New_York'))
+timestamp = now.strftime('%Y-%m-%d %H:%M:%S ET')
+
+resume_line = 'claude --resume ' + session_id
+
 try:
-    lines = open('$TRANSCRIPT').readlines()
-    for line in lines:
-        try:
-            obj = json.loads(line)
-            if obj.get('role') == 'user':
-                c = obj.get('content', '')
-                t = c[0]['text'] if isinstance(c, list) else c
-                print(str(t)[:120])
-                break
-        except: pass
-except: pass
-" 2>/dev/null | tr -d '\n')
-  fi
+    with open(resume_file, 'r') as f:
+        content = f.read()
+except FileNotFoundError:
+    content = ''
 
-  # Build entry line with optional summary
-  if [ -n "$SUMMARY" ]; then
-    LINE="claude --resume $SESSION_ID  # $TIMESTAMP | $SUMMARY"
-  else
-    LINE="claude --resume $SESSION_ID  # $TIMESTAMP"
-  fi
+# Session exists with new-format Last used line — update timestamp only
+pattern_with_lastused = r'(claude --resume ' + re.escape(session_id) + r'\nLast used: )([^\n]*)'
+if re.search(pattern_with_lastused, content):
+    content = re.sub(pattern_with_lastused, r'\g<1>' + timestamp, content)
 
-  # Append to claude_resume — never overwrite, always preserve previous entries
-  echo "$LINE" >> claude_resume
+# Session exists in old inline format — insert Last used: after the matching line
+elif resume_line in content:
+    content = re.sub(
+        r'(claude --resume ' + re.escape(session_id) + r'[^\n]*\n)',
+        r'\1Last used: ' + timestamp + '\n',
+        content,
+        count=1
+    )
 
-  # Append to full chronological session log
-  echo "$LINE" >> claude_session_log
+# New session — append block
+else:
+    if content and not content.endswith('\n\n'):
+        content = content.rstrip('\n') + '\n\n'
+    content += resume_line + '\n'
+    content += 'Last used: ' + timestamp + '\n'
+
+with open(resume_file, 'w') as f:
+    f.write(content)
+" 2>/dev/null
 fi
