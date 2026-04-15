@@ -35,6 +35,27 @@ _SUFFIX_RE = re.compile(
     r"\s+Seller\s+(US|CA|AU|UK|DE|FR|IT|ES|MX|JP)\s*$", re.IGNORECASE
 )
 
+# #note: Manual name mapping for brands where the sheet brand_name differs from the Intentwise account_name.
+# Key is the sheet brand_name lowercased; value is the cleaned data file key (also lowercased, suffix stripped).
+_NAME_MAP: dict[str, str] = {
+    "organics ocean": "organicsocean",
+    "woof": "woof pet",
+    "goldpaw": "gold paw series",
+    "intermetro": "metro (intermetro)",
+    "strutz": "strutz, inc",
+    "plato pet treats": "plato pet",
+    "humarian": "humarian probonix",
+    "topps": "the topps company, inc.",
+    "fable fish": "fable fish co",
+    "goshi": "goshi store",
+    "infinite age": "infinite age us",
+    "the indoor golf shop": "shop indoor golf",
+    "edlund": "edlund company",
+    "terra health": "terra health essentials, llc",
+    "petlio": "petlio store",
+    "pop labs": "pop | daily canine health",
+}
+
 
 # #note: Reads the pgAdmin export file and returns a cleaned lookup dict.
 # Key is lowercased brand name with marketplace suffix stripped.
@@ -133,7 +154,8 @@ def update_sheet() -> None:
         if not brand_name:
             continue
 
-        entry = lookup.get(brand_name.lower())
+        key = brand_name.lower()
+        entry = lookup.get(key) or lookup.get(_NAME_MAP.get(key, ""))
         if entry:
             account_id, marketplace = entry
             cells_to_update.append(
