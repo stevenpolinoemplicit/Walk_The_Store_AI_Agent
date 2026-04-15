@@ -16,6 +16,27 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 12 — ODR unblocked, save_session.sh cleanup
+**Date:** 2026-04-15
+**Participants:** Claude Code
+
+#### Decisions Made
+- **ODR table confirmed via pgAdmin** — user uploaded pgAdmin export of `sellercentral_sellerperformance_customerserviceperformance_report`; table exists and is queryable; confirmed columns: `order_defect_rate_afn_rate` (numeric), `order_defect_rate_afn_status` (varchar), `download_date`, `account_id`
+- **ODR query uncommented in postgres.py** — was blocked pending table name/column confirmation; now live with confirmed values
+- **save_session.sh refactored** — removed `claude_session_log` (redundant with `claude_resume`); timestamp now Eastern Time with space between date and time (`2026-04-15 14:30:00 ET`); dedup logic added — if session ID already exists, updates "Last used:" line in place rather than appending a duplicate entry
+
+#### Files Updated
+- `.claude/hooks/save_session.sh` — single-file output (claude_resume only), ET timestamp, dedup/update logic
+- `tools/postgres.py` — ODR query uncommented; table name and column name placeholders replaced with confirmed values
+- `info/SETUP.md` — ODR item marked `[x]`; ODR fix todo in Part 4 checked off
+- `info/New_POC_Plan_April13.md` — ODR columns added to Confirmed Facts; "Still Waiting On" updated to reflect only remaining action is uncommenting in postgres.py (now done)
+
+#### Still To Do
+- [ ] `python main.py` — local end-to-end test run
+- [ ] GCP deployment (Parts 5–6 of SETUP.md)
+
+---
+
 ### Session 11 — Google auth Cloud Run fix, Slack chat:write scope fix, deploy doc updated
 **Date:** 2026-04-14
 **Participants:** Claude Code

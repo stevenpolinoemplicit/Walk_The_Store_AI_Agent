@@ -142,7 +142,7 @@ Slack DM Steven Polino for errors. Fill out the feedback form to request feature
 
 | Item | Owner | Needed for |
 |------|-------|------------|
-| Uncomment ODR in `postgres.py` — table and all columns now confirmed | Steven / Claude | `order_defect_rate` metric is commented out in `postgres.py` — ready to implement |
+| ~~ODR query~~ | ~~postgres.py~~ | ✅ Implemented April 15 |
 
 ---
 

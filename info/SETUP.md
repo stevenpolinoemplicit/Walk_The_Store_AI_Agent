@@ -62,7 +62,7 @@ Before touching GCP, confirm the agent runs locally end-to-end.
   - [ ] Creates Google Doc — appears in shared POC Drive folder
   - [ ] Slack notification sent with Drive link
   - [x] `save_report()` writes to walk_the_store.daily_health_reports — schema created, upserts on (brand_code, report_date)
-- [ ] Fix ODR once table name is confirmed (see Part 1)
+- [x] ODR query uncommented and implemented in `postgres.py` ✅
 
 ---
 
