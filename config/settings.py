@@ -44,4 +44,4 @@ PEOPLE_SHEET_ID: str = os.environ["PEOPLE_SHEET_ID"]
 
 # --- Always-Notify Users ---
 # #note: Slack user IDs that receive every brand alert and the ops summary regardless of severity or brand assignment
-NOTIFY_ALWAYS_IDS: list[str] = ["U5H5GLJLV", "U0AJYBWU03X"]
+NOTIFY_ALWAYS_IDS: list[str] = ["U0AJYBWU03X"] # "U5H5GLJLV" = Adam
