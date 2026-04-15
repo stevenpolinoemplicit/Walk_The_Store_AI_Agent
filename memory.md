@@ -16,6 +16,27 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 14 — Slack DM alerts suppressed for local test run
+**Date:** 2026-04-15
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Per-brand Slack DMs suppressed for local testing** — `NOTIFY_ALWAYS_IDS` DM loop inside `_route_alerts` commented out so individual brand alert DMs do not fire during local runs
+- **Ops summary channel post suppressed** — `slack_alerts.post_ops_summary(summary)` commented out; ops summary now logged to console via `logger.info` instead
+- **Daily ops summary DM retained** — `NOTIFY_ALWAYS_IDS` DM loop for the end-of-run ops summary kept active so Steven still receives the daily summary in Slack
+- **`pass` added to empty `if` block in `_route_alerts`** — all code inside the `if report.highest_severity in ("critical", "warning")` block was commented out, causing `IndentationError`; `pass` added to satisfy Python syntax
+
+#### Files Updated
+- `controllers/orchestrator.py` — per-brand DM loop commented out; ops summary channel post commented out + replaced with `logger.info`; `pass` added to empty `if` block
+
+#### Still To Do
+- [ ] Restore TEST MODE comments in orchestrator.py before go-live
+- [ ] Full local end-to-end test with `python main.py`
+- [ ] VTR warning threshold decision
+- [ ] GCP deployment (Parts 5–6 of SETUP.md)
+
+---
+
 ### Session 13 — Rate units bug fixed, test mode, ops summary findings, VTR threshold question
 **Date:** 2026-04-15
 **Participants:** Claude Code
