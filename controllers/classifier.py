@@ -18,8 +18,8 @@ from config.thresholds import (
     PRE_CANCEL_WARNING,
     ODR_CRITICAL,
     ODR_WARNING,
-    AHR_CRITICAL,
-    AHR_WARNING,
+    AHR_CRITICAL_STATUSES,
+    AHR_WARNING_STATUSES,
     CRITICAL_ACCOUNT_STATUSES,
 )
 from models.findings import Finding
@@ -125,23 +125,22 @@ def classify_order_defect_rate(value: Optional[float]) -> Finding:
     )
 
 
-# #note: Classifies account health rating score — critical <= 250, warning 251–300, healthy > 300
-def classify_account_health_rating(value: Optional[int]) -> Finding:
+# #note: Classifies account health rating — Amazon returns a string status ('Great', 'Good', 'Fair', 'At Risk', 'Critical')
+def classify_account_health_rating(value: Optional[str]) -> Finding:
     if value is None:
         return Finding(
             check="account_health_rating",
             severity=UNKNOWN,
             message="Account health rating: data not available",
         )
-    if value <= AHR_CRITICAL:
+    if value in AHR_CRITICAL_STATUSES:
         sev = CRITICAL
-    elif value <= AHR_WARNING:
+    elif value in AHR_WARNING_STATUSES:
         sev = WARNING
     else:
         sev = HEALTHY
     return Finding(
         check="account_health_rating",
-        metric_value=float(value),
         severity=sev,
         message=f"Account health rating (AHR): {value}",
     )
