@@ -24,7 +24,7 @@ CREATE TABLE walk_the_store.daily_health_reports (
     valid_tracking_rate   NUMERIC,
     pre_cancel_rate       NUMERIC,
     order_defect_rate     NUMERIC,                            -- NULL until ODR table/column confirmed
-    account_health_rating INT,
+    account_health_rating VARCHAR(50),                      -- Amazon AHR string status: 'Great', 'Good', 'Fair', 'At Risk', 'Critical'
     account_status        VARCHAR(50),
     food_safety_count     INT,
     ip_complaint_count    INT,
