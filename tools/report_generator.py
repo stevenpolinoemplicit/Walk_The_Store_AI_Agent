@@ -60,7 +60,7 @@ def _count_severities(report: HealthReport) -> tuple[int, int]:
 
 # #note: Formats a float as a percentage string; returns "N/A" if None
 def _fmt_pct(val: Optional[float]) -> str:
-    return f"{val:.2%}" if val is not None else "N/A"
+    return f"{val:.2f}%" if val is not None else "N/A"
 
 
 # #note: Formats any value as a string; returns "N/A" if None

@@ -139,9 +139,13 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                     )
                     row = cur.fetchone()
                     if row:
-                        metrics["late_shipment_rate"] = row.get("late_shipment_rate_rate")
-                        metrics["valid_tracking_rate"] = row.get("valid_tracking_rate_rate")
-                        metrics["pre_cancel_rate"] = row.get("pre_fulfillment_cancellation_rate_rate")
+                        # DB stores rates as decimals (1.00 = 100%) — multiply by 100 to match percentage thresholds
+                        lsr = row.get("late_shipment_rate_rate")
+                        vtr = row.get("valid_tracking_rate_rate")
+                        pcr = row.get("pre_fulfillment_cancellation_rate_rate")
+                        metrics["late_shipment_rate"] = float(lsr) * 100 if lsr is not None else None
+                        metrics["valid_tracking_rate"] = float(vtr) * 100 if vtr is not None else None
+                        metrics["pre_cancel_rate"] = float(pcr) * 100 if pcr is not None else None
                 except Exception as e:
                     logger.warning(f"Shipping metrics query failed for {account_id}: {e}")
 
@@ -159,7 +163,9 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                     )
                     row = cur.fetchone()
                     if row:
-                        metrics["order_defect_rate"] = row.get("order_defect_rate_afn_rate")
+                        # DB stores rate as decimal (0.01 = 1%) — multiply by 100 to match percentage thresholds
+                        odr = row.get("order_defect_rate_afn_rate")
+                        metrics["order_defect_rate"] = float(odr) * 100 if odr is not None else None
                 except Exception as e:
                     logger.warning(f"Customer service metrics query failed for {account_id}: {e}")
 

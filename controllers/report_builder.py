@@ -8,6 +8,7 @@ from datetime import date
 from typing import List, Optional
 
 from controllers.classifier import classify_account
+from config.thresholds import CRITICAL, WARNING
 from models.account import AccountConfig
 from models.report import HealthReport
 from tools import postgres, teamwork
@@ -124,6 +125,10 @@ def build_ops_summary(reports: List[HealthReport]) -> str:
         lines.append("*Critical accounts:*")
         for r in critical:
             lines.append(f"  • {r.brand_name}")
+            alert_findings = [f for f in r.findings if f.severity in (CRITICAL, WARNING)][:4]
+            for f in alert_findings:
+                emoji = "🔴" if f.severity == CRITICAL else "🟡"
+                lines.append(f"      {emoji} {f.message}")
 
     if warning:
         lines.append("*Warning accounts:*")
