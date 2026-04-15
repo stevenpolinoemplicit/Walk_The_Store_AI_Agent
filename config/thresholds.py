@@ -28,10 +28,10 @@ PRE_CANCEL_WARNING: float = 1.0
 ODR_CRITICAL: float = 1.0
 ODR_WARNING: float = 0.5
 
-# Account Health Rating (AHR) thresholds (integer score)
-# #note: Amazon AHR score — lower is worse; <= 250 is at risk of deactivation
-AHR_CRITICAL: int = 250
-AHR_WARNING: int = 300
+# Account Health Rating (AHR) status strings
+# #note: Amazon AHR is a string status ('Great', 'Good', 'Fair', 'At Risk') — not a numeric score
+AHR_CRITICAL_STATUSES: set[str] = {"At Risk", "Critical"}
+AHR_WARNING_STATUSES: set[str] = {"Fair"}
 
 # Account status strings that map to critical
 # #note: Any of these account status values triggers a critical alert
