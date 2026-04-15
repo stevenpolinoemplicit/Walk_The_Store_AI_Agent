@@ -124,6 +124,12 @@ Slack DM Steven Polino for errors. Fill out the feedback form to request feature
 | IP complaint column | `received_intellectual_property_complaints_defects_count` | ✅ confirmed |
 | AHR column | `account_health_rating_ahr_status` (in policycompliance table) | ✅ confirmed |
 | Account status column | `current_account_status` | ✅ confirmed from sample data |
+| ODR table | `sellercentral_sellerperformance_customerserviceperformance_report` | ✅ confirmed via pgAdmin |
+| ODR rate column | `order_defect_rate_afn_rate` (numeric) | ✅ confirmed via pgAdmin |
+| ODR status column | `order_defect_rate_afn_status` (varchar: GOOD/AT_RISK/CRITICAL) | ✅ confirmed via pgAdmin |
+| ODR MFN rate column | `order_defect_rate_mfn_rate` (numeric) | ✅ confirmed via pgAdmin |
+| ODR threshold | 0.01 / LESS_THAN (1%) | ✅ confirmed via pgAdmin — matches thresholds.py |
+| ODR date column | `download_date` | ✅ confirmed via pgAdmin — same as all other tables |
 | Account source | Google Sheets — Brand Code Mapping Sheet | ✅ |
 | Brand account_id source | `iw_account_id` column (col S) in Brand Code Mapping Sheet | ✅ |
 | AM Slack ID source | People Lookup Sheet — `am_brands` + `slack_user_id` | ✅ |
@@ -136,7 +142,7 @@ Slack DM Steven Polino for errors. Fill out the feedback form to request feature
 
 | Item | Owner | Needed for |
 |------|-------|------------|
-| ODR table name — `customerserviceperformance` truncated at 63 chars; OR confirm if ODR is in `sellercentral_sellerperformance_report` (row-per-metric table) | Steven → pgAdmin query | order_defect_rate metric — commented out in `postgres.py` |
+| Uncomment ODR in `postgres.py` — table and all columns now confirmed | Steven / Claude | `order_defect_rate` metric is commented out in `postgres.py` — ready to implement |
 
 ---
 

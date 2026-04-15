@@ -17,21 +17,7 @@
 - [x] Policy compliance columns: `food_and_product_safety_issues_defects_count`, `received_intellectual_property_complaints_defects_count` ✅
 - [x] AHR column: `account_health_rating_ahr_status` (in policycompliance table) ✅
 - [x] Account status column: `current_account_status` ✅
-- [~] ODR table — `sellercentral_sellerperformance_customerserviceperformance_report` name is 65 chars (Postgres limit is 63). Run this in pgAdmin to find the actual table name:
-  ```sql
-  SELECT table_name
-  FROM information_schema.tables
-  WHERE table_schema = 'amazon_source_data'
-  AND table_name LIKE 'sellercentral_sellerperformance_c%';
-  ```
-  Alternatively, check if ODR exists in `sellercentral_sellerperformance_report` (row-per-metric table) — run:
-  ```sql
-  SELECT id, status, target_value, defects_count, report_date
-  FROM amazon_source_data.sellercentral_sellerperformance_report
-  WHERE account_id = 2029940
-  ORDER BY report_date DESC
-  LIMIT 20;
-  ```
+- [x] ODR table — `sellercentral_sellerperformance_customerserviceperformance_report` ✅ confirmed via pgAdmin query. Columns: `order_defect_rate_afn_rate` (numeric), `order_defect_rate_afn_status` (varchar: GOOD/AT_RISK/CRITICAL), `download_date` (date), `account_id` (bigint)
 
 ### Google Sheets (Brand Config — replaces walk_the_store Postgres schema)
 - [x] Brand Code Mapping Sheet shared with service account ✅
