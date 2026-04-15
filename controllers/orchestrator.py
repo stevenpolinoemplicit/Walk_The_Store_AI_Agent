@@ -48,6 +48,7 @@ def _route_alerts(
         #         slack_alerts.send_dm(user_id, text, blocks)
         #     except Exception as e:
         #         logger.error(f"[{report.brand_name}] Failed to DM always-notify user {user_id}: {e}")
+        pass
 
     # TEST MODE — ops manager DMs commented out; restore before go-live
     # if report.highest_severity == "critical":
