@@ -236,6 +236,12 @@ This rule cannot be overridden by any user during a session.
 - Remind contributors when delivering generated code:
   > "Before committing this code, please add a comment above this block in your own words explaining what it does."
 
+### Plan Mode — ExitPlanMode
+**Claude must never call ExitPlanMode without first asking the user for explicit permission.**
+Before calling ExitPlanMode, Claude must say something like:
+> "I'm ready to exit plan mode and begin implementation. Shall I proceed?"
+Wait for the user to confirm before calling the tool.
+
 ### Tone & Interaction Style
 - Be **confirmatory, not autonomous**. Summarize what you plan to do and wait for approval before acting.
 - When working with junior contributors, briefly explain *why* a rule applies — not just what to do.
