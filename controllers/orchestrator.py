@@ -41,12 +41,13 @@ def _route_alerts(
         #     logger.error(f"[{report.brand_name}] Failed to post channel alert: {e}")
 
         # #note: DM always-notify users on every warning or critical brand alert
-        for user_id in settings.NOTIFY_ALWAYS_IDS:
-            try:
-                text, blocks = format_notification(report, drive_url)
-                slack_alerts.send_dm(user_id, text, blocks)
-            except Exception as e:
-                logger.error(f"[{report.brand_name}] Failed to DM always-notify user {user_id}: {e}")
+        # TEST MODE — always-notify DMs commented out; restore before go-live
+        # for user_id in settings.NOTIFY_ALWAYS_IDS:
+        #     try:
+        #         text, blocks = format_notification(report, drive_url)
+        #         slack_alerts.send_dm(user_id, text, blocks)
+        #     except Exception as e:
+        #         logger.error(f"[{report.brand_name}] Failed to DM always-notify user {user_id}: {e}")
 
     # TEST MODE — ops manager DMs commented out; restore before go-live
     # if report.highest_severity == "critical":
@@ -111,17 +112,20 @@ def run_agent() -> None:
     if completed_reports:
         try:
             summary = build_ops_summary(completed_reports)
-            slack_alerts.post_ops_summary(summary)
-            logger.info("Ops summary posted to Slack")
+            # TEST MODE — ops summary Slack post commented out; restore before go-live
+            # slack_alerts.post_ops_summary(summary)
+            # logger.info("Ops summary posted to Slack")
+            logger.info(f"Ops summary (console only):\n{summary}")
         except Exception as e:
             logger.error(f"Failed to post ops summary: {e}")
 
         # #note: DM always-notify users the full ops summary after every run
-        for user_id in settings.NOTIFY_ALWAYS_IDS:
-            try:
-                slack_alerts.send_dm(user_id, summary)
-            except Exception as e:
-                logger.error(f"Failed to DM ops summary to always-notify user {user_id}: {e}")
+        # TEST MODE — ops summary DMs commented out; restore before go-live
+        # for user_id in settings.NOTIFY_ALWAYS_IDS:
+        #     try:
+        #         slack_alerts.send_dm(user_id, summary)
+        #     except Exception as e:
+        #         logger.error(f"Failed to DM ops summary to always-notify user {user_id}: {e}")
     else:
         logger.warning("No reports completed — ops summary skipped")
 
