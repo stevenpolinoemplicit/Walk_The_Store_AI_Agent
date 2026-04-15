@@ -16,6 +16,36 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 13 — Rate units bug fixed, test mode, ops summary findings, VTR threshold question
+**Date:** 2026-04-15
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Rate values multiplied by 100 in postgres.py** — DB stores all rates as decimals (1.00 = 100%); thresholds are in percentage points (95.0, 4.0, etc.); this caused every rate metric to classify incorrectly (valid tracking 100% was flagged Critical, bad late shipment rates passed as Healthy); fix is * 100 at read time in postgres.py
+- **_fmt_pct fixed in report_generator.py** — was using `:.2%` (Python format that multiplies by 100 again); changed to `:.2f%` to avoid double-multiplication after the postgres.py fix
+- **Test mode added to orchestrator.py** — brand channel posts and ops manager DMs commented out with `# TEST MODE` markers; NOTIFY_ALWAYS_IDS DMs and ops channel summary remain active; restore before go-live
+- **Ops summary now includes critical findings** — previously only listed brand names; now shows critical/warning findings indented under each critical brand, matching notification format
+- **GOOGLE_SERVICE_ACCOUNT_JSON changed to inline JSON** — was a file path to OneDrive (path with spaces causing os.path.exists issues on OneDrive sync); now raw JSON string in .env; google_auth.py already handled this case
+- **VTR warning threshold unresolved** — Amazon documents only one hard floor (95%); code warns at < 97%; decision deferred to Steven; low-volume MFN brands can drop 3%+ overnight so buffer has merit
+
+#### Files Updated
+- `tools/postgres.py` — multiply all 4 rate metrics by 100 at read time (late shipment, valid tracking, pre-cancel, ODR)
+- `tools/report_generator.py` — `_fmt_pct` changed from `:.2%` to `:.2f%`
+- `controllers/orchestrator.py` — test mode comments on brand channel + ops manager DM sends; ops summary restored
+- `controllers/report_builder.py` — `build_ops_summary` now appends critical/warning findings under each critical brand; added CRITICAL/WARNING imports
+- `.claude/hooks/save_session.sh` — single file output, ET timestamp, dedup logic (session 12 work, logged now)
+- `info/New_POC_Plan_April13.md` — VTR threshold decision added to Still Waiting On
+- `info/SETUP.md` — ODR confirmed, various items updated (session 12 work, logged now)
+
+#### Still To Do
+- [ ] Resolve Google Docs API 403 — confirmed key/APIs/project/billing all correct; inline JSON in .env is latest attempt; re-run `python main.py` to verify
+- [ ] `python main.py` — full local end-to-end test
+- [ ] VTR warning threshold decision — keep 97% buffer or collapse to single 95% critical
+- [ ] Restore TEST MODE comments in orchestrator.py before go-live
+- [ ] GCP deployment (Parts 5–6 of SETUP.md)
+
+---
+
 ### Session 12 — ODR unblocked, save_session.sh cleanup
 **Date:** 2026-04-15
 **Participants:** Claude Code

@@ -143,6 +143,7 @@ Slack DM Steven Polino for errors. Fill out the feedback form to request feature
 | Item | Owner | Needed for |
 |------|-------|------------|
 | ~~ODR query~~ | ~~postgres.py~~ | ✅ Implemented April 15 |
+| VTR warning threshold — current code warns at < 97%, critical at < 95%. Amazon only documents one hard floor (95%). Decision: keep 97% warning buffer for early heads-up on low-volume MFN brands, or collapse to a single 95% critical threshold? Low-volume sellers can drop 3%+ overnight. | Steven | `config/thresholds.py` — `VALID_TRACKING_WARNING` |
 
 ---
 
