@@ -43,18 +43,14 @@ def _route_alerts(
         for user_id in settings.NOTIFY_ALWAYS_IDS:
             try:
                 text, blocks = format_notification(report, drive_url)
-                slack_alerts.send_dm(user_id, text)
+                slack_alerts.send_dm(user_id, text, blocks)
             except Exception as e:
                 logger.error(f"[{report.brand_name}] Failed to DM always-notify user {user_id}: {e}")
 
     if report.highest_severity == "critical":
         try:
-            dm_text = (
-                f"🔴 *CRITICAL* — {report.brand_name} has account health issues requiring immediate attention."
-            )
-            if drive_url:
-                dm_text += f"\n📄 <{drive_url}|View Full Report>"
-            slack_alerts.send_dm(account.ops_slack_id, dm_text)
+            text, blocks = format_notification(report, drive_url)
+            slack_alerts.send_dm(account.ops_slack_id, text, blocks)
         except Exception as e:
             logger.error(f"[{report.brand_name}] Failed to send DM to ops manager: {e}")
 
