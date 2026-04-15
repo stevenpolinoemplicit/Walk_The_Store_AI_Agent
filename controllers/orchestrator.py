@@ -120,12 +120,11 @@ def run_agent() -> None:
             logger.error(f"Failed to post ops summary: {e}")
 
         # #note: DM always-notify users the full ops summary after every run
-        # TEST MODE — ops summary DMs commented out; restore before go-live
-        # for user_id in settings.NOTIFY_ALWAYS_IDS:
-        #     try:
-        #         slack_alerts.send_dm(user_id, summary)
-        #     except Exception as e:
-        #         logger.error(f"Failed to DM ops summary to always-notify user {user_id}: {e}")
+        for user_id in settings.NOTIFY_ALWAYS_IDS:
+            try:
+                slack_alerts.send_dm(user_id, summary)
+            except Exception as e:
+                logger.error(f"Failed to DM ops summary to always-notify user {user_id}: {e}")
     else:
         logger.warning("No reports completed — ops summary skipped")
 
