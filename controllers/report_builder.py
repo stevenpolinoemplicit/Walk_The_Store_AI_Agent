@@ -78,7 +78,7 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
         "valid_tracking_rate": _safe_float(metrics_raw, "valid_tracking_rate", brand),
         "pre_cancel_rate": _safe_float(metrics_raw, "pre_cancel_rate", brand),
         "order_defect_rate": _safe_float(metrics_raw, "order_defect_rate", brand),
-        "account_health_rating": _safe_int(metrics_raw, "account_health_rating", brand),
+        "account_health_rating": metrics_raw.get("account_health_rating"),
         "food_safety_count": _safe_int(metrics_raw, "food_safety_count", brand),
         "ip_complaint_count": _safe_int(metrics_raw, "ip_complaint_count", brand),
         "account_status": metrics_raw.get("account_status"),

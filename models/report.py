@@ -20,7 +20,7 @@ class HealthReport(BaseModel):
     valid_tracking_rate: Optional[float] = None
     pre_cancel_rate: Optional[float] = None
     order_defect_rate: Optional[float] = None
-    account_health_rating: Optional[int] = None
+    account_health_rating: Optional[str] = None
     account_status: Optional[str] = None
     food_safety_count: Optional[int] = None
     ip_complaint_count: Optional[int] = None
