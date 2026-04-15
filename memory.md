@@ -16,6 +16,30 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 15 — iw_account_id bulk population script built and run
+**Date:** 2026-04-15
+**Participants:** Claude Code
+
+#### Decisions Made
+- **iw_account_id lives in Google Sheets, not Postgres** — user couldn't find `account_config` table; confirmed it was removed in Session 9 and replaced by Google Sheets; Postgres has no brand config table
+- **Bulk populate via pgAdmin export** — user ran `SELECT DISTINCT account_id, account_name` against Intentwise source tables; exported as TSV to `info/account_id_and_account_name`; script reads this file and writes to sheet
+- **us_ca column (col T) added** — script also populates marketplace (US or CA) for each brand; AU/UK/etc. left blank
+- **16 name mismatch mappings hardcoded** — sheet `brand_name` values differ from Intentwise `account_name` for 16 brands (e.g. "Organics Ocean" vs "organicsocean", "Goldpaw" vs "Gold Paw Series"); `_NAME_MAP` dict added to script to resolve these
+- **Shared iw_account_id is safe** — confirmed no code changes needed; orchestrator loops over `AccountConfig` Python objects (not DB rows); both brands process independently and appear separately in daily summary; `save_report()` unique constraint is on `brand_code`, not `account_id`
+- **Service account needed Editor access to sheet** — initial run got 403; fixed by sharing Brand Code Mapping Sheet with service account email as Editor
+
+#### Files Created
+- `tools/update_iw_account_ids.py` — one-off utility; reads pgAdmin TSV export, matches to sheet `brand_name` (col O), writes `account_id` → col S and `US/CA` → col T; includes `_NAME_MAP` for 16 known mismatches
+
+#### Still To Do
+- [ ] ~26 brands still unmatched (not in Intentwise data at all) — need investigation; includes ORG, SEL, ALG, MOK, PHT, AJK, NLN, CCB, NHR and others
+- [ ] Restore TEST MODE comments in orchestrator.py before go-live
+- [ ] Full local end-to-end test with `python main.py`
+- [ ] VTR warning threshold decision
+- [ ] GCP deployment (Parts 5–6 of SETUP.md)
+
+---
+
 ### Session 14 — Slack DM alerts suppressed for local test run
 **Date:** 2026-04-15
 **Participants:** Claude Code
