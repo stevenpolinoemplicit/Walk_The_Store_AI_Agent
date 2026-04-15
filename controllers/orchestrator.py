@@ -30,14 +30,15 @@ def _route_alerts(
     drive_url: Optional[str],
 ) -> None:
     if report.highest_severity in ("critical", "warning"):
-        try:
-            text, blocks = format_notification(report, drive_url)
-            slack_alerts.post_to_channel(account.slack_channel_id, text, blocks, drive_url)
-            logger.info(
-                f"[{report.brand_name}] Slack alert posted to channel {account.slack_channel_id}"
-            )
-        except Exception as e:
-            logger.error(f"[{report.brand_name}] Failed to post channel alert: {e}")
+        # TEST MODE — brand channel posts commented out; restore before go-live
+        # try:
+        #     text, blocks = format_notification(report, drive_url)
+        #     slack_alerts.post_to_channel(account.slack_channel_id, text, blocks, drive_url)
+        #     logger.info(
+        #         f"[{report.brand_name}] Slack alert posted to channel {account.slack_channel_id}"
+        #     )
+        # except Exception as e:
+        #     logger.error(f"[{report.brand_name}] Failed to post channel alert: {e}")
 
         # #note: DM always-notify users on every warning or critical brand alert
         for user_id in settings.NOTIFY_ALWAYS_IDS:
@@ -47,12 +48,13 @@ def _route_alerts(
             except Exception as e:
                 logger.error(f"[{report.brand_name}] Failed to DM always-notify user {user_id}: {e}")
 
-    if report.highest_severity == "critical":
-        try:
-            text, blocks = format_notification(report, drive_url)
-            slack_alerts.send_dm(account.ops_slack_id, text, blocks)
-        except Exception as e:
-            logger.error(f"[{report.brand_name}] Failed to send DM to ops manager: {e}")
+    # TEST MODE — ops manager DMs commented out; restore before go-live
+    # if report.highest_severity == "critical":
+    #     try:
+    #         text, blocks = format_notification(report, drive_url)
+    #         slack_alerts.send_dm(account.ops_slack_id, text, blocks)
+    #     except Exception as e:
+    #         logger.error(f"[{report.brand_name}] Failed to send DM to ops manager: {e}")
 
 
 # #note: Main agent run — called by main.py or pg_listener; processes every active account end-to-end
