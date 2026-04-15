@@ -34,12 +34,15 @@ def post_to_channel(
         raise
 
 
-# #note: DMs a Slack user directly; used only for critical severity alerts to account managers
-def send_dm(user_id: str, text: str) -> None:
+# #note: DMs a Slack user directly; blocks are passed when available for rich formatting
+def send_dm(user_id: str, text: str, blocks: Optional[list] = None) -> None:
     try:
         dm_response = _client.conversations_open(users=user_id)
         dm_channel = dm_response["channel"]["id"]
-        _client.chat_postMessage(channel=dm_channel, text=text)
+        kwargs: dict = {"channel": dm_channel, "text": text}
+        if blocks:
+            kwargs["blocks"] = blocks
+        _client.chat_postMessage(**kwargs)
         logger.info(f"Slack DM sent to user {user_id}")
     except SlackApiError as e:
         logger.error(f"Slack send_dm failed: {e.response['error']}")
