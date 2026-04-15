@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # #note: Routes a single brand report to Slack — posts notification with Drive link on critical/warning,
-#        DMs the account manager directly on critical. Healthy accounts are silent.
+#        DMs the brand's ops manager directly on critical. Healthy accounts are silent.
 def _route_alerts(
     report: HealthReport,
     account: AccountConfig,
@@ -54,9 +54,9 @@ def _route_alerts(
             )
             if drive_url:
                 dm_text += f"\n📄 <{drive_url}|View Full Report>"
-            slack_alerts.send_dm(account.am_slack_id, dm_text)
+            slack_alerts.send_dm(account.ops_slack_id, dm_text)
         except Exception as e:
-            logger.error(f"[{report.brand_name}] Failed to send DM to AM: {e}")
+            logger.error(f"[{report.brand_name}] Failed to send DM to ops manager: {e}")
 
 
 # #note: Main agent run — called by main.py or pg_listener; processes every active account end-to-end

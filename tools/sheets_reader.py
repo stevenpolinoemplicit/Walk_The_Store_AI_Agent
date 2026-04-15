@@ -48,32 +48,32 @@ def _get_gspread_client() -> gspread.Client:
     return gspread.Client(auth=creds)
 
 
-# #note: Reads the People Lookup Sheet and returns a dict mapping brand_code -> AM slack_user_id.
-# Each AM row has an am_brands column with comma-separated brand codes they manage.
-def _build_am_lookup(client: gspread.Client) -> dict[str, str]:
-    am_map: dict[str, str] = {}
+# #note: Reads the People Lookup Sheet and returns a dict mapping brand_code -> ops manager slack_user_id.
+# Each ops manager row has an ops_brands column (col I) with comma-separated brand codes they manage.
+def _build_ops_lookup(client: gspread.Client) -> dict[str, str]:
+    ops_map: dict[str, str] = {}
     try:
         sheet = client.open_by_key(settings.PEOPLE_SHEET_ID)
         worksheet = sheet.get_worksheet_by_id(_PEOPLE_SHEET_GID)
         records = worksheet.get_all_records()
         for row in records:
-            am_brands_raw = str(row.get("am_brands", "")).strip()
+            ops_brands_raw = str(row.get("ops_brands", "")).strip()
             slack_id = str(row.get("slack_user_id", "")).strip()
-            if not am_brands_raw or not slack_id:
+            if not ops_brands_raw or not slack_id:
                 continue
-            for brand_code in [b.strip() for b in am_brands_raw.split(",")]:
+            for brand_code in [b.strip() for b in ops_brands_raw.split(",")]:
                 if brand_code:
-                    am_map[brand_code] = slack_id
+                    ops_map[brand_code] = slack_id
     except Exception as e:
-        logger.warning(f"Failed to load People Lookup sheet — AM DMs will be skipped: {e}")
-    return am_map
+        logger.warning(f"Failed to load People Lookup sheet — ops manager DMs will be skipped: {e}")
+    return ops_map
 
 
 # #note: Main entry point — reads the Brand Code Mapping Sheet and returns all active brands
 # as AccountConfig objects. Skips brands where iw_account_id is missing or invalid.
 def get_active_accounts() -> List[AccountConfig]:
     client = _get_gspread_client()
-    am_lookup = _build_am_lookup(client)
+    ops_lookup = _build_ops_lookup(client)
 
     try:
         sheet = client.open_by_key(settings.BRAND_SHEET_ID)
@@ -125,7 +125,7 @@ def get_active_accounts() -> List[AccountConfig]:
                 mws_seller_id=mws_seller_id,
                 account_id=account_id,
                 slack_channel_id=str(row.get("internal_brand_slack_id", "")).strip(),
-                am_slack_id=am_lookup.get(brand_code),
+                ops_slack_id=ops_lookup.get(brand_code),
                 tw_task_lists=tw_task_lists,
             )
         )

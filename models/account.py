@@ -1,6 +1,6 @@
 # account.py — Pydantic model for a single brand/account loaded from Google Sheets.
 # Replaces the previous Postgres-backed AccountConfig. Fields map directly to the
-# Brand Code Mapping Sheet columns, with AM Slack ID resolved from the People Lookup Sheet.
+# Brand Code Mapping Sheet columns, with ops manager Slack ID resolved from the People Lookup Sheet.
 
 from typing import Optional
 from pydantic import BaseModel
@@ -17,6 +17,6 @@ class AccountConfig(BaseModel):
     account_id: Optional[int] = None            # resolved at startup via Postgres account_status_changed_report
     country_code: str = "US"                    # hardcoded for POC — all brands are US marketplace
     slack_channel_id: str                       # sheet: internal_brand_slack_id
-    am_slack_id: Optional[str] = None           # People Lookup sheet: slack_user_id for this brand's AM
+    ops_slack_id: Optional[str] = None          # People Lookup sheet: slack_user_id for this brand's ops manager (col I: ops_brands)
     drive_folder_id: str = POC_DRIVE_FOLDER_ID  # shared POC Drive folder for all reports
     tw_task_lists: dict[str, Optional[str]] = {}  # all 12 tw_*_task_list IDs, keyed by dept name
