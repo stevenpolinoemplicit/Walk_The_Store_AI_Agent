@@ -6,8 +6,12 @@
 import csv
 import logging
 import re
+import sys
 from pathlib import Path
 from typing import Optional
+
+# #note: Adds the project root to sys.path so config/tools imports work when run as a standalone script
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import gspread
 
