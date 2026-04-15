@@ -146,25 +146,22 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                     logger.warning(f"Shipping metrics query failed for {account_id}: {e}")
 
                 # Customer service — order defect rate
-                # april14 PROBLEM: table name 'sellercentral_sellerperformance_customerserviceperformance_report'
-                #   is 65 chars — Postgres truncates identifiers at 63. Table not found in pgAdmin query results.
-                #   Actual table name is likely truncated. Column name for ODR still unconfirmed.
-                #   Leaving query commented out until data team confirms the real table name.
-                # try:
-                #     cur.execute(
-                #         """
-                #         SELECT <order_defect_rate_column>
-                #         FROM amazon_source_data.<truncated_table_name>
-                #         WHERE account_id = %s AND country_code = %s
-                #         ORDER BY download_date DESC LIMIT 1
-                #         """,
-                #         (account_id, country_code),
-                #     )
-                #     row = cur.fetchone()
-                #     if row:
-                #         metrics["order_defect_rate"] = row.get("<order_defect_rate_column>")
-                # except Exception as e:
-                #     logger.warning(f"Customer service metrics query failed for {account_id}: {e}")
+                # april15 CONFIRMED via pgAdmin: table exists, columns confirmed
+                try:
+                    cur.execute(
+                        """
+                        SELECT order_defect_rate_afn_rate
+                        FROM amazon_source_data.sellercentral_sellerperformance_customerserviceperformance_report
+                        WHERE account_id = %s AND country_code = %s
+                        ORDER BY download_date DESC LIMIT 1
+                        """,
+                        (account_id, country_code),
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        metrics["order_defect_rate"] = row.get("order_defect_rate_afn_rate")
+                except Exception as e:
+                    logger.warning(f"Customer service metrics query failed for {account_id}: {e}")
 
                 # Policy compliance + account health rating — all three confirmed in information_schema
                 # CONFIRMED: account_health_rating_ahr_status is in THIS table (not sellerperformance_report)
