@@ -31,6 +31,9 @@ class HealthReport(BaseModel):
     # Teamwork completed tasks for this brand (read-only)
     teamwork_completed_tasks: List[dict] = []
 
+    # Teamwork open/pending tasks for this brand (read-only)
+    teamwork_open_tasks: List[dict] = []
+
     # Brand context summary — reserved for a future version, not populated in v1
     brand_context: Optional[str] = None
 
