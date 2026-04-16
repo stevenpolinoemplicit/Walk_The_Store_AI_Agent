@@ -227,19 +227,22 @@ def create_report(report: HealthReport, account: AccountConfig) -> str:
         raise
 
     # Step 3: Move doc to the brand's Drive folder (if drive_folder_id is configured)
-    # april13 waiting on confirmation - are drive_folder_ids populated in walk_the_store.account_config
-    # for all active brands? If not, docs will land in the service account's root Drive.
+    # supportsAllDrives=True is required for Shared Drive (Google Workspace Shared Drive) folders.
+    # Without it the Drive API ignores Shared Drive content and returns 404 on the folder.
     if account.drive_folder_id:
         try:
-            file_meta = (
-                drive_service.files().get(fileId=doc_id, fields="parents").execute()
-            )
+            file_meta = drive_service.files().get(
+                fileId=doc_id,
+                fields="parents",
+                supportsAllDrives=True,
+            ).execute()
             current_parents = ",".join(file_meta.get("parents", []))
             drive_service.files().update(
                 fileId=doc_id,
                 addParents=account.drive_folder_id,
                 removeParents=current_parents,
                 fields="id, parents",
+                supportsAllDrives=True,
             ).execute()
             logger.info(
                 f"[{report.brand_name}] Doc moved to Drive folder {account.drive_folder_id}"
@@ -258,6 +261,7 @@ def create_report(report: HealthReport, account: AccountConfig) -> str:
     try:
         drive_service.permissions().create(
             fileId=doc_id,
+            supportsAllDrives=True,
             body={
                 "type": "domain",
                 "role": "reader",
@@ -315,15 +319,20 @@ def create_ops_summary_doc(summary_text: str, report_date: date) -> str:
         logger.error(f"Failed to write ops summary doc content: {e}")
         raise
 
-    # Move to ops summary Drive folder
+    # Move to ops summary Drive folder — supportsAllDrives=True required for Shared Drive folders
     try:
-        file_meta = drive_service.files().get(fileId=doc_id, fields="parents").execute()
+        file_meta = drive_service.files().get(
+            fileId=doc_id,
+            fields="parents",
+            supportsAllDrives=True,
+        ).execute()
         current_parents = ",".join(file_meta.get("parents", []))
         drive_service.files().update(
             fileId=doc_id,
             addParents=settings.DRIVE_OPS_FOLDER_ID,
             removeParents=current_parents,
             fields="id, parents",
+            supportsAllDrives=True,
         ).execute()
         logger.info(f"Ops summary doc moved to Drive folder {settings.DRIVE_OPS_FOLDER_ID}")
     except Exception as e:
@@ -333,6 +342,7 @@ def create_ops_summary_doc(summary_text: str, report_date: date) -> str:
     try:
         drive_service.permissions().create(
             fileId=doc_id,
+            supportsAllDrives=True,
             body={"type": "domain", "role": "reader", "domain": "emplicit.co"},
         ).execute()
         logger.info("Ops summary doc sharing set to emplicit.co domain")
