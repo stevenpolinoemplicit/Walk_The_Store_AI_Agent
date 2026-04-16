@@ -70,8 +70,8 @@ Before touching GCP, confirm the agent runs locally end-to-end.
 
 ## PART 5 — GCP Setup
 
-- [ ] Create or confirm GCP project exists
-- [ ] Enable APIs:
+- [x] Create or confirm GCP project exists
+- [x] Enable APIs:
   ```
   gcloud services enable run.googleapis.com \
     artifactregistry.googleapis.com \

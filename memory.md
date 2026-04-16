@@ -16,6 +16,41 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 17 — FBM/FBA suppression, ODR fix, UNKNOWN severity fix, country investigation
+**Date:** 2026-04-16
+**Participants:** Claude Code
+
+#### Decisions Made
+- **FBM vs FBA columns added to Brand Code Mapping Sheet** — column U = FBM (merchant-fulfilled, controls own shipping), column V = FBA (Amazon-fulfilled); value of 1 = enrolled; both read into `AccountConfig.fbm` and `AccountConfig.fba`
+- **Shipping metric suppression for FBA-only brands** — `classify_account()` now accepts `check_shipping: bool`; when False, LSR / VTR / pre-cancel all set to HEALTHY with "not monitored" message; FBM brands get full shipping checks; hybrid brands (both flags) get shipping checks
+- **VTR suppression folded into check_shipping** — previously `check_vtr` was standalone; now when `check_shipping=False` all three shipping metrics are suppressed together; `check_vtr` still exists as a secondary gate for edge cases
+- **ODR query fixed for fulfillment type** — now selects both `order_defect_rate_afn_rate` and `order_defect_rate_mfn_rate`; FBM-only → mfn_rate; FBA-only or unset → afn_rate; hybrid → `max()` of both; mfn_rate confirmed non-null for FBM brands via pgAdmin (Shop Indoor Golf: 0.0033 = 0.33%)
+- **UNKNOWN severity brands included in healthy bucket** — `build_ops_summary()` previously dropped brands with `highest_severity = "unknown"` silently; now grouped with healthy; this was why daily summary only showed critical brands
+- **Out-of-scope brands skip silently** — removed `notify_error()` call for missing `iw_account_id`; these brands don't pay for the service so missing ID is expected, not an error; now `logger.debug()` only
+- **Shared account_id is expected and correct** — AllGood and LVL10 share account_id 3619670; multiple brands can legitimately share one Amazon seller account; agent processes each brand independently; account-level metrics (food safety, IP, AHR, status) apply to all brands under the account
+- **Food safety violations on account 3619670 are real** — pgAdmin confirmed: 4 food/product safety violations, `status = 'BAD'`, `country_code = 'US'`, consistent since at least 2026-03-28; rolling 6-month window; ops manager for those brands needs to address
+- **VTR warning threshold confirmed good** — keep critical < 95%, warning 95–98%; no change
+- **Google Doc footer updated** — now reads: data sourced from Emplicit's PostgreSQL database; contact Steven Polino on Slack; feedback form link added
+- **SETUP.md Part 4 marked complete** — local end-to-end test run confirmed successful; new env vars added to Part 3
+
+#### Files Updated
+- `models/account.py` — `fmb` renamed to `fbm`; `fba: bool = False` added
+- `tools/sheets_reader.py` — reads `FBM` (col U) and `FBA` (col V); removed `notify_error()` for missing iw_account_id; removed unused `notify_error` import
+- `tools/postgres.py` — `get_account_health_metrics()` now accepts `fbm` and `fba` params; ODR query selects both afn and mfn rates, picks correct one in Python
+- `controllers/classifier.py` — `classify_account()` now accepts `check_shipping: bool = True`; suppresses LSR/VTR/pre-cancel for FBA-only brands
+- `controllers/report_builder.py` — passes `fbm`/`fba` to metrics query; passes `check_shipping=account.fbm` to classifier; `UNKNOWN` added to imports; healthy bucket in `build_ops_summary()` now includes UNKNOWN severity
+- `tools/report_generator.py` — footer text updated (data source, contact, feedback form)
+- `info/SETUP.md` — Part 3 env vars updated; Part 4 fully checked off
+
+#### Still To Do
+- [ ] Restore Adam (U5H5GLJLV) + Emily (UEKN0TY2D) to `NOTIFY_ALWAYS_IDS` in `settings.py` before go-live
+- [ ] Uncomment ops manager filtered DM loop in `orchestrator.py` before go-live
+- [ ] GCP deployment (Parts 5–6 of SETUP.md)
+- [ ] Ops team to investigate 4 food/product safety violations on account 3619670 (AllGood / LVL10 shared account)
+- [ ] Verify mfn_rate data exists for all other FBM brands in pgAdmin (confirmed for Shop Indoor Golf only)
+
+---
+
 ### Session 16 — Pre-deployment: summary format, Drive 403 fix, Teamwork open tasks, ops routing
 **Date:** 2026-04-16
 **Participants:** Claude Code
