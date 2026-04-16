@@ -132,14 +132,19 @@ def build_brand_reports(account: AccountConfig) -> List[HealthReport]:
     return reports
 
 
-# #note: Generates a plain-text cross-brand summary from a list of completed reports.
-# Critical accounts listed first with top 4 findings; warning accounts with top 3 findings;
-# healthy accounts collapsed into a single comma-separated line.
-def build_ops_summary(reports: List[HealthReport]) -> str:
+# #note: Generates a cross-brand summary from a list of completed reports.
+# slack_format=True (default) wraps brand names as Slack hyperlinks (<url|name>).
+# slack_format=False renders plain brand names — used for the Google Doc version.
+def build_ops_summary(reports: List[HealthReport], slack_format: bool = True) -> str:
     critical = [r for r in reports if r.highest_severity == CRITICAL]
     warning = [r for r in reports if r.highest_severity == WARNING]
     # UNKNOWN means all metrics returned None (no data) — treat as no issues for summary grouping
     healthy = [r for r in reports if r.highest_severity in (HEALTHY, UNKNOWN)]
+
+    def _label(r: HealthReport) -> str:
+        if slack_format and r.drive_url:
+            return f"<{r.drive_url}|{r.brand_name}>"
+        return r.brand_name
 
     lines = [
         f"*Walk the Store — Daily Summary ({date.today()})*",
@@ -151,8 +156,7 @@ def build_ops_summary(reports: List[HealthReport]) -> str:
     if critical:
         lines.append("*Critical accounts:*")
         for r in critical:
-            label = f"<{r.drive_url}|{r.brand_name}>" if r.drive_url else r.brand_name
-            lines.append(f"  • {label}")
+            lines.append(f"  • {_label(r)}")
             alert_findings = [f for f in r.findings if f.severity in (CRITICAL, WARNING)][:4]
             for f in alert_findings:
                 emoji = "🔴" if f.severity == CRITICAL else "🟡"
@@ -161,8 +165,7 @@ def build_ops_summary(reports: List[HealthReport]) -> str:
     if warning:
         lines.append("*Warning accounts:*")
         for r in warning:
-            label = f"<{r.drive_url}|{r.brand_name}>" if r.drive_url else r.brand_name
-            lines.append(f"  • {label}")
+            lines.append(f"  • {_label(r)}")
             alert_findings = [f for f in r.findings if f.severity in (CRITICAL, WARNING)][:3]
             for f in alert_findings:
                 emoji = "🔴" if f.severity == CRITICAL else "🟡"
