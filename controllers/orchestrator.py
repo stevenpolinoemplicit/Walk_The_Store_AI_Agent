@@ -128,11 +128,12 @@ def run_agent() -> None:
             except Exception as e:
                 logger.error(f"Failed to post ops summary to channel: {e}")
 
-            # Create a Google Doc of the ops summary and append the link
+            # Create a Google Doc of the ops summary — plain text version (no Slack mrkdwn)
             ops_doc_url: Optional[str] = None
             try:
                 from tools.report_generator import create_ops_summary_doc
-                ops_doc_url = create_ops_summary_doc(summary, date.today())
+                doc_summary = build_ops_summary(completed_reports, slack_format=False)
+                ops_doc_url = create_ops_summary_doc(doc_summary, date.today())
                 logger.info(f"Ops summary doc created: {ops_doc_url}")
             except Exception as e:
                 logger.warning(f"Ops summary doc creation failed — Slack message will have no Drive link: {e}")
