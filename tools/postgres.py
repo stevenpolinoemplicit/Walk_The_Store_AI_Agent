@@ -100,130 +100,128 @@ def save_report(report: HealthReport) -> None:
         raise
 
 
-# #note: Fetches all account health metrics for a seller from Intentwise-synced Postgres tables.
+# #note: Fetches all account health metrics for a seller across ALL marketplaces (country_codes).
+# Uses DISTINCT ON (country_code) to get the latest row per country per table.
+# Returns dict[country_code, metrics_dict] — e.g. {"US": {...}, "CA": {...}, "MX": {...}}.
 # Each sub-query is isolated so a single table failure does not block the rest.
-# CONFIRMED: schema is 'amazon_source_data' (main schemas in use: amazon_source_data, amazon_marketing_cloud).
-# CONFIRMED (from columns_for_5_tables.txt, shipping table): seller identifier = account_id (bigint).
-# CONFIRMED (from columns_for_5_tables.txt, shipping table): marketplace = country_code (varchar).
-# CONFIRMED (from columns_for_5_tables.txt, shipping table): date column = download_date (date).
-# CONFIRMED: tables are append-only — new rows inserted daily, no upserts. ORDER BY download_date DESC LIMIT 1 is correct.
-# NOTE: account_id / country_code / download_date confirmed for shipping table; assumed consistent across all 4 tables.
-def get_account_health_metrics(account_id: int, country_code: str, fbm: bool = False, fba: bool = True) -> dict:
-    metrics: dict = {
-        "late_shipment_rate": None,
-        "valid_tracking_rate": None,
-        "pre_cancel_rate": None,
-        "order_defect_rate": None,
-        "account_health_rating": None,
-        "food_safety_count": None,
-        "ip_complaint_count": None,
-        "account_status": None,
-    }
+def get_account_health_metrics(account_id: int, fbm: bool = False, fba: bool = True) -> dict[str, dict]:
+
+    def _empty() -> dict:
+        return {
+            "late_shipment_rate": None,
+            "valid_tracking_rate": None,
+            "pre_cancel_rate": None,
+            "order_defect_rate": None,
+            "account_health_rating": None,
+            "food_safety_count": None,
+            "ip_complaint_count": None,
+            "account_status": None,
+        }
+
+    country_data: dict[str, dict] = {}
+
+    def _get(cc: str) -> dict:
+        if cc not in country_data:
+            country_data[cc] = _empty()
+        return country_data[cc]
+
     try:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
 
-                # Shipping metrics — late shipment rate, valid tracking rate, pre-cancel rate
-                # CONFIRMED column names from columns_for_5_tables.txt:
-                #   late_shipment_rate_rate, valid_tracking_rate_rate, pre_fulfillment_cancellation_rate_rate
+                # Shipping metrics — one row per country, most recent download
                 try:
                     cur.execute(
                         """
-                        SELECT late_shipment_rate_rate, valid_tracking_rate_rate,
+                        SELECT DISTINCT ON (country_code) country_code,
+                               late_shipment_rate_rate,
+                               valid_tracking_rate_rate,
                                pre_fulfillment_cancellation_rate_rate
                         FROM amazon_source_data.sellercentral_sellerperformance_shippingperformance_report
-                        WHERE account_id = %s AND country_code = %s
-                        ORDER BY download_date DESC LIMIT 1
+                        WHERE account_id = %s
+                        ORDER BY country_code, download_date DESC
                         """,
-                        (account_id, country_code),
+                        (account_id,),
                     )
-                    row = cur.fetchone()
-                    if row:
-                        # DB stores rates as decimals (1.00 = 100%) — multiply by 100 to match percentage thresholds
+                    for row in cur.fetchall():
+                        cc = row["country_code"]
+                        m = _get(cc)
                         lsr = row.get("late_shipment_rate_rate")
                         vtr = row.get("valid_tracking_rate_rate")
                         pcr = row.get("pre_fulfillment_cancellation_rate_rate")
-                        metrics["late_shipment_rate"] = float(lsr) * 100 if lsr is not None else None
-                        metrics["valid_tracking_rate"] = float(vtr) * 100 if vtr is not None else None
-                        metrics["pre_cancel_rate"] = float(pcr) * 100 if pcr is not None else None
+                        m["late_shipment_rate"] = float(lsr) * 100 if lsr is not None else None
+                        m["valid_tracking_rate"] = float(vtr) * 100 if vtr is not None else None
+                        m["pre_cancel_rate"] = float(pcr) * 100 if pcr is not None else None
                 except Exception as e:
                     logger.warning(f"Shipping metrics query failed for {account_id}: {e}")
 
-                # Customer service — order defect rate
-                # april15 CONFIRMED via pgAdmin: table exists, columns confirmed
-                # FBA brands use afn_rate; FBM brands use mfn_rate; hybrid takes the worse (higher) of both
+                # ODR — FBM uses mfn_rate, FBA uses afn_rate, hybrid takes worse of both
                 try:
                     cur.execute(
                         """
-                        SELECT order_defect_rate_afn_rate, order_defect_rate_mfn_rate
+                        SELECT DISTINCT ON (country_code) country_code,
+                               order_defect_rate_afn_rate,
+                               order_defect_rate_mfn_rate
                         FROM amazon_source_data.sellercentral_sellerperformance_customerserviceperformance_report
-                        WHERE account_id = %s AND country_code = %s
-                        ORDER BY download_date DESC LIMIT 1
+                        WHERE account_id = %s
+                        ORDER BY country_code, download_date DESC
                         """,
-                        (account_id, country_code),
+                        (account_id,),
                     )
-                    row = cur.fetchone()
-                    if row:
-                        # DB stores rate as decimal (0.01 = 1%) — multiply by 100 to match percentage thresholds
+                    for row in cur.fetchall():
+                        cc = row["country_code"]
+                        m = _get(cc)
                         afn = row.get("order_defect_rate_afn_rate")
                         mfn = row.get("order_defect_rate_mfn_rate")
                         if fbm and fba:
-                            # Hybrid — take the worse (higher) rate across both fulfillment types
                             rates = [float(r) * 100 for r in [afn, mfn] if r is not None]
-                            metrics["order_defect_rate"] = max(rates) if rates else None
+                            m["order_defect_rate"] = max(rates) if rates else None
                         elif fbm:
-                            metrics["order_defect_rate"] = float(mfn) * 100 if mfn is not None else None
+                            m["order_defect_rate"] = float(mfn) * 100 if mfn is not None else None
                         else:
-                            # FBA only or unset — use afn_rate
-                            metrics["order_defect_rate"] = float(afn) * 100 if afn is not None else None
+                            m["order_defect_rate"] = float(afn) * 100 if afn is not None else None
                 except Exception as e:
                     logger.warning(f"Customer service metrics query failed for {account_id}: {e}")
 
-                # Policy compliance + account health rating — all three confirmed in information_schema
-                # CONFIRMED: account_health_rating_ahr_status is in THIS table (not sellerperformance_report)
-                # sellerperformance_report is a row-per-metric table with different structure — not used for AHR
+                # Policy compliance + AHR
                 try:
                     cur.execute(
                         """
-                        SELECT food_and_product_safety_issues_defects_count,
+                        SELECT DISTINCT ON (country_code) country_code,
+                               food_and_product_safety_issues_defects_count,
                                received_intellectual_property_complaints_defects_count,
                                account_health_rating_ahr_status
                         FROM amazon_source_data.sellercentral_sellerperformance_policycompliance_report
-                        WHERE account_id = %s AND country_code = %s
-                        ORDER BY download_date DESC LIMIT 1
+                        WHERE account_id = %s
+                        ORDER BY country_code, download_date DESC
                         """,
-                        (account_id, country_code),
+                        (account_id,),
                     )
-                    row = cur.fetchone()
-                    if row:
-                        metrics["food_safety_count"] = row.get(
-                            "food_and_product_safety_issues_defects_count"
-                        )
-                        metrics["ip_complaint_count"] = row.get(
-                            "received_intellectual_property_complaints_defects_count"
-                        )
-                        metrics["account_health_rating"] = row.get(
-                            "account_health_rating_ahr_status"
-                        )
+                    for row in cur.fetchall():
+                        cc = row["country_code"]
+                        m = _get(cc)
+                        m["food_safety_count"] = row.get("food_and_product_safety_issues_defects_count")
+                        m["ip_complaint_count"] = row.get("received_intellectual_property_complaints_defects_count")
+                        m["account_health_rating"] = row.get("account_health_rating_ahr_status")
                 except Exception as e:
                     logger.warning(f"Policy/AHR metrics query failed for {account_id}: {e}")
 
-                # Account status
-                # CONFIRMED column name from sample data — values observed: 'NORMAL', 'AT_RISK'
-                # date column is created_date (not download_date — this table has no download_date)
+                # Account status — uses created_date (no download_date on this table)
                 try:
                     cur.execute(
                         """
-                        SELECT current_account_status
+                        SELECT DISTINCT ON (country_code) country_code,
+                               current_account_status
                         FROM amazon_source_data.sellercentral_account_status_changed_report
-                        WHERE account_id = %s AND country_code = %s
-                        ORDER BY created_date DESC LIMIT 1
+                        WHERE account_id = %s
+                        ORDER BY country_code, created_date DESC
                         """,
-                        (account_id, country_code),
+                        (account_id,),
                     )
-                    row = cur.fetchone()
-                    if row:
-                        metrics["account_status"] = row.get("current_account_status")
+                    for row in cur.fetchall():
+                        cc = row["country_code"]
+                        m = _get(cc)
+                        m["account_status"] = row.get("current_account_status")
                 except Exception as e:
                     logger.warning(f"Account status query failed for {account_id}: {e}")
 
@@ -231,4 +229,4 @@ def get_account_health_metrics(account_id: int, country_code: str, fbm: bool = F
         logger.error(f"get_account_health_metrics connection failed for {account_id}: {e}")
         raise
 
-    return metrics
+    return country_data
