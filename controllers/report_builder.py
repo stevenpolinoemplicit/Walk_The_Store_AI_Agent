@@ -133,7 +133,8 @@ def build_ops_summary(reports: List[HealthReport]) -> str:
     if critical:
         lines.append("*Critical accounts:*")
         for r in critical:
-            lines.append(f"  • {r.brand_name}")
+            label = f"<{r.drive_url}|{r.brand_name}>" if r.drive_url else r.brand_name
+            lines.append(f"  • {label}")
             alert_findings = [f for f in r.findings if f.severity in (CRITICAL, WARNING)][:4]
             for f in alert_findings:
                 emoji = "🔴" if f.severity == CRITICAL else "🟡"
@@ -142,7 +143,8 @@ def build_ops_summary(reports: List[HealthReport]) -> str:
     if warning:
         lines.append("*Warning accounts:*")
         for r in warning:
-            lines.append(f"  • {r.brand_name}")
+            label = f"<{r.drive_url}|{r.brand_name}>" if r.drive_url else r.brand_name
+            lines.append(f"  • {label}")
             alert_findings = [f for f in r.findings if f.severity in (CRITICAL, WARNING)][:3]
             for f in alert_findings:
                 emoji = "🔴" if f.severity == CRITICAL else "🟡"
