@@ -45,6 +45,8 @@
 - [x] `GOOGLE_SERVICE_ACCOUNT_JSON`
 - [x] `BRAND_SHEET_ID`
 - [x] `PEOPLE_SHEET_ID`
+- [x] `GOOGLE_IMPERSONATION_EMAIL` — Workspace user email the service account impersonates via DWD
+- [x] `DRIVE_OPS_FOLDER_ID` — Drive folder ID for daily ops summary docs
 
 ---
 
@@ -53,14 +55,14 @@
 Before touching GCP, confirm the agent runs locally end-to-end.
 
 - [x] `pip install -r requirements.txt` (gspread installed)
-- [ ] `python main.py`
-- [ ] Verify in logs:
-  - [ ] Connects to Google Sheets — loads active brands (check for brand names in logs)
-  - [ ] No "iw_account_id missing" warnings (all brands in sheet have col S populated)
-  - [ ] Queries Intentwise-synced tables — pulls metrics (no column errors)
-  - [ ] Classifies severity correctly
-  - [ ] Creates Google Doc — appears in shared POC Drive folder
-  - [ ] Slack notification sent with Drive link
+- [x] `python main.py`
+- [x] Verify in logs:
+  - [x] Connects to Google Sheets — loads active brands (check for brand names in logs)
+  - [x] No "iw_account_id missing" warnings (all brands in sheet have col S populated)
+  - [x] Queries Intentwise-synced tables — pulls metrics (no column errors)
+  - [x] Classifies severity correctly
+  - [x] Creates Google Doc — appears in shared POC Drive folder
+  - [x] Slack notification sent with Drive link
   - [x] `save_report()` writes to walk_the_store.daily_health_reports — schema created, upserts on (brand_code, report_date)
 - [x] ODR query uncommented and implemented in `postgres.py` ✅
 
