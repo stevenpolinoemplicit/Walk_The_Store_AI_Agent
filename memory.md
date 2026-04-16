@@ -16,6 +16,45 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 16 — Pre-deployment: summary format, Drive 403 fix, Teamwork open tasks, ops routing
+**Date:** 2026-04-16
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Daily ops summary now posts to channel + per-ops-manager filtered DMs** — `post_ops_summary()` restored (was TEST MODE); orchestrator groups completed reports by `ops_slack_id` and DMs each ops manager only their brands; Steven (U0AJYBWU03X) + Adam (U5H5GLJLV) always receive the full summary via `NOTIFY_ALWAYS_IDS`; per-brand individual alerts remain commented out permanently — this is the final design
+- **No individual brand notifications to anyone** — `_route_alerts()` body stays commented out; only the daily ops summary is sent
+- **Daily ops summary saved as a Google Doc** — new `create_ops_summary_doc()` in `report_generator.py` creates a dated doc in `DRIVE_OPS_FOLDER_ID` and appends the link to Slack DMs; requires new env var `DRIVE_OPS_FOLDER_ID`
+- **Drive 403 root cause: DWD not activated in code** — domain-wide delegation was confirmed configured in Google Admin but code never called `.with_subject()`; `google_auth.py` now calls `creds.with_subject(settings.GOOGLE_IMPERSONATION_EMAIL)` when the env var is set; requires new env var `GOOGLE_IMPERSONATION_EMAIL` (a real emplicit.co Workspace user email)
+- **HttpError logging added to report_generator.py** — Doc creation and batchUpdate catches now log HTTP status code + reason + error_details specifically for `HttpError` before re-raising
+- **Teamwork now fetches open/pending tasks in addition to completed** — new `get_open_tasks_by_list()` in `teamwork.py`; `report_builder.py` loops over all 12 task lists for both completed + open; open task failures are silent (don't add to data_gaps — supplementary data)
+- **Teamwork section added to Google Doc** — `_build_doc_text()` now includes "Teamwork Activity" section with open tasks (top 10) and recent completions (top 5) after Detailed Findings
+- **Teamwork section in Slack updated** — `_format_teamwork_section()` now accepts both `open_tasks` and `completed_tasks`, shows both with "`Open / In Progress`" and "`Recently Completed`" sub-labels
+- **Daily summary format updated** — warning brands now show top 3 findings (was names-only); healthy brands collapsed to single comma-separated line; `HEALTHY` constant added to imports
+- **Adam (U5H5GLJLV) added to NOTIFY_ALWAYS_IDS** — was commented out; both Steven + Adam now receive all reports
+
+#### Files Updated
+- `models/report.py` — added `teamwork_open_tasks: List[dict] = []` field
+- `config/settings.py` — added `GOOGLE_IMPERSONATION_EMAIL`, `DRIVE_OPS_FOLDER_ID`; fixed `NOTIFY_ALWAYS_IDS` to include both U0AJYBWU03X and U5H5GLJLV
+- `tools/google_auth.py` — added `.with_subject()` call when `GOOGLE_IMPERSONATION_EMAIL` is set
+- `tools/teamwork.py` — added `get_open_tasks_by_list()`
+- `tools/report_generator.py` — `HttpError` import + specific catches on Doc create/batchUpdate; Teamwork Activity section in `_build_doc_text()`; new `create_ops_summary_doc()` function; added `date` import
+- `views/slack_formatter.py` — `_format_teamwork_section()` now accepts open + completed lists; shows both sections
+- `controllers/report_builder.py` — `HEALTHY` import added; `build_brand_report()` collects open tasks; `build_ops_summary()` shows warning findings + healthy comma line
+- `controllers/orchestrator.py` — restored `post_ops_summary()` channel post; added ops summary doc creation; added per-ops-manager filtered DM logic; added `date` import
+- `.env.example` — added `GOOGLE_IMPERSONATION_EMAIL` and `DRIVE_OPS_FOLDER_ID` entries with comments
+
+#### Still To Do
+- [ ] Add `GOOGLE_IMPERSONATION_EMAIL=<user@emplicit.co>` to `.env` (use a real Workspace user who has Drive access)
+- [ ] Add `DRIVE_OPS_FOLDER_ID=<folder_id>` to `.env` (Drive folder for daily ops summary docs)
+- [ ] Full local end-to-end test: `python main.py`
+- [ ] Verify Drive 403 is resolved (check logs for "Google Doc created" not "HTTP 403")
+- [ ] VTR warning threshold decision — keep 97% buffer or collapse to single 95% critical
+- [ ] Restore remaining TEST MODE items if any before go-live
+- [ ] GCP deployment (Parts 5–6 of SETUP.md)
+- [ ] ~26 brands still unmatched (no iw_account_id) — need investigation
+
+---
+
 ### Session 15 — iw_account_id bulk population script built and run
 **Date:** 2026-04-15
 **Participants:** Claude Code
