@@ -37,11 +37,18 @@ TEAMWORK_API_TOKEN: str = os.environ["TEAMWORK_API_TOKEN"]
 # CONFIRMED: value is a file path (e.g. "walk the store service account key.json") — from_service_account_file() is correct
 GOOGLE_SERVICE_ACCOUNT_JSON: str = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
 
+# #note: Workspace user email the service account impersonates via DWD — required for Google Workspace domains
+GOOGLE_IMPERSONATION_EMAIL: str = os.environ.get("GOOGLE_IMPERSONATION_EMAIL", "")
+
 # --- Google Sheets ---
 # #note: Sheet IDs for brand config and people lookup — used by sheets_reader.py at agent startup
 BRAND_SHEET_ID: str = os.environ["BRAND_SHEET_ID"]
 PEOPLE_SHEET_ID: str = os.environ["PEOPLE_SHEET_ID"]
 
+# --- Google Drive ---
+# #note: Folder ID for the daily ops summary Google Doc — separate from per-brand report folders
+DRIVE_OPS_FOLDER_ID: str = os.environ.get("DRIVE_OPS_FOLDER_ID", "")
+
 # --- Always-Notify Users ---
-# #note: Slack user IDs that receive every brand alert and the ops summary regardless of severity or brand assignment
-NOTIFY_ALWAYS_IDS: list[str] = ["U0AJYBWU03X"] # "U5H5GLJLV" = Adam
+# #note: Slack user IDs that always receive the full ops summary DM (Steven + Adam)
+NOTIFY_ALWAYS_IDS: list[str] = ["U0AJYBWU03X", "U5H5GLJLV"]
