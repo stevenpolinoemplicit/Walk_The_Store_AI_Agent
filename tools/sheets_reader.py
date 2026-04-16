@@ -11,7 +11,6 @@ import gspread
 from config import settings
 from models.account import AccountConfig
 from tools.google_auth import get_service_account_credentials
-from tools.slack_alerts import notify_error
 
 logger = logging.getLogger(__name__)
 
@@ -100,15 +99,9 @@ def get_active_accounts() -> List[AccountConfig]:
         try:
             account_id = int(raw_account_id)
         except (ValueError, TypeError):
-            logger.warning(
-                f"[{brand_code}] iw_account_id '{raw_account_id}' is missing or invalid — skipping"
-            )
-            notify_error(
-                source="sheets_reader / Brand Code Mapping Sheet",
-                message=(
-                    f"Brand `{brand_code}` was skipped — `iw_account_id` is missing or invalid in column S.\n"
-                    f"Add the numeric Intentwise account_id for this brand to resume processing."
-                ),
+            # Missing iw_account_id is expected for brands not contracted for this service — skip silently
+            logger.debug(
+                f"[{brand_code}] iw_account_id '{raw_account_id}' is missing — skipping (not in scope)"
             )
             continue
 
@@ -117,6 +110,10 @@ def get_active_accounts() -> List[AccountConfig]:
             col.replace("tw_", "").replace("_task_list", ""): str(row.get(col, "")).strip() or None
             for col in _TW_COLUMNS
         }
+
+        # #note: FBM col U — 1 means brand ships its own orders (MFN); FBA col V — 1 means Amazon fulfills
+        fbm = str(row.get("FBM", "")).strip() == "1"
+        fba = str(row.get("FBA", "")).strip() == "1"
 
         accounts.append(
             AccountConfig(
@@ -127,6 +124,8 @@ def get_active_accounts() -> List[AccountConfig]:
                 slack_channel_id=str(row.get("internal_brand_slack_id", "")).strip(),
                 ops_slack_id=ops_lookup.get(brand_code),
                 tw_task_lists=tw_task_lists,
+                fbm=fbm,
+                fba=fba,
             )
         )
         logger.info(f"Loaded account: {brand_code} (account_id={account_id})")
