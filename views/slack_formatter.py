@@ -29,15 +29,27 @@ def _format_finding(finding) -> str:
     return f"{_emoji(finding.severity)} {finding.message}"
 
 
-# #note: Builds the Teamwork task section text; returns None if no completed tasks to show
-def _format_teamwork_section(tasks: list[dict]) -> Optional[str]:
-    if not tasks:
+# #note: Builds the Teamwork task section text showing open and completed tasks.
+# Returns None if both lists are empty. Shows up to 5 open tasks and 5 recent completions.
+def _format_teamwork_section(
+    open_tasks: list[dict], completed_tasks: list[dict]
+) -> Optional[str]:
+    if not open_tasks and not completed_tasks:
         return None
-    recent = tasks[:5]
-    lines = ["*Recent Teamwork completions:*"]
-    for t in recent:
-        date_str = t.get("completed_on", "")
-        lines.append(f"  ✅ {t.get('name', 'Unnamed task')} — {date_str}")
+    lines = ["*Teamwork Activity:*"]
+    if open_tasks:
+        lines.append("  _Open / In Progress:_")
+        for t in open_tasks[:5]:
+            assignee = t.get("assignee") or "Unassigned"
+            due = t.get("due_date") or ""
+            due_str = f" — due: {due}" if due else ""
+            lines.append(f"    🔲 {t.get('name', 'Unnamed task')} ({assignee}){due_str}")
+    if completed_tasks:
+        lines.append("  _Recently Completed:_")
+        for t in completed_tasks[:5]:
+            assignee = t.get("assignee") or "Unassigned"
+            date_str = t.get("completed_on", "")
+            lines.append(f"    ✅ {t.get('name', 'Unnamed task')} ({assignee}) — {date_str}")
     return "\n".join(lines)
 
 
@@ -128,7 +140,7 @@ def format_brand_report(report: HealthReport) -> tuple[str, list]:
             }
         )
 
-    teamwork_text = _format_teamwork_section(report.teamwork_completed_tasks)
+    teamwork_text = _format_teamwork_section(report.teamwork_open_tasks, report.teamwork_completed_tasks)
     if teamwork_text:
         blocks.append({"type": "divider"})
         blocks.append(
