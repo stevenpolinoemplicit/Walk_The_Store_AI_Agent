@@ -51,4 +51,5 @@ DRIVE_OPS_FOLDER_ID: str = os.environ.get("DRIVE_OPS_FOLDER_ID", "")
 
 # --- Always-Notify Users ---
 # #note: Slack user IDs that always receive the full ops summary DM (Steven + Adam)
-NOTIFY_ALWAYS_IDS: list[str] = ["U0AJYBWU03X", "U5H5GLJLV", "UEKN0TY2D"]
+# TEST MODE — only Steven receives summary; restore Adam + Emily before go-live
+NOTIFY_ALWAYS_IDS: list[str] = ["U0AJYBWU03X"]  # , "U5H5GLJLV", "UEKN0TY2D"
