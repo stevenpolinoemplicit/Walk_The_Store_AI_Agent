@@ -12,7 +12,7 @@ import logging
 from datetime import date
 from typing import List, Optional
 
-from controllers.report_builder import build_brand_report, build_ops_summary
+from controllers.report_builder import build_brand_reports, build_ops_summary
 from config import settings
 from models.account import AccountConfig
 from models.report import HealthReport
@@ -78,38 +78,39 @@ def run_agent() -> None:
     for account in accounts:
         logger.info(f"Processing account: {account.brand_name}")
 
-        # Build the health report from Postgres + Teamwork data
+        # Build one HealthReport per marketplace country for this brand
         try:
-            report = build_brand_report(account)
+            brand_reports = build_brand_reports(account)
         except Exception as e:
             logger.error(f"[{account.brand_name}] Report build failed — skipping: {e}")
             continue
 
-        # Generate the Google Doc and save it to Drive
-        drive_url: Optional[str] = None
-        try:
-            from tools.report_generator import create_report
-            drive_url = create_report(report, account)
-            report.drive_url = drive_url
-            logger.info(f"[{account.brand_name}] Drive report created: {drive_url}")
-        except Exception as e:
-            logger.error(
-                f"[{account.brand_name}] Drive report generation failed — "
-                f"Slack alert will still send without link: {e}"
-            )
+        for report in brand_reports:
+            # Generate the Google Doc and save it to Drive
+            drive_url: Optional[str] = None
+            try:
+                from tools.report_generator import create_report
+                drive_url = create_report(report, account)
+                report.drive_url = drive_url
+                logger.info(f"[{report.brand_name}] Drive report created: {drive_url}")
+            except Exception as e:
+                logger.error(
+                    f"[{report.brand_name}] Drive report generation failed — "
+                    f"Slack alert will still send without link: {e}"
+                )
 
-        # Route Slack alerts (failure here does not stop Postgres save)
-        _route_alerts(report, account, drive_url)
+            # Route Slack alerts (failure here does not stop Postgres save)
+            _route_alerts(report, account, drive_url)
 
-        # Save to Postgres (failure here does not crash the run)
-        try:
-            postgres.save_report(report)
-        except Exception as e:
-            logger.error(
-                f"[{account.brand_name}] Postgres save failed — alert was still sent: {e}"
-            )
+            # Save to Postgres (failure here does not crash the run)
+            try:
+                postgres.save_report(report)
+            except Exception as e:
+                logger.error(
+                    f"[{report.brand_name}] Postgres save failed — alert was still sent: {e}"
+                )
 
-        completed_reports.append(report)
+            completed_reports.append(report)
 
     # --- Cross-brand ops summary ---
     if completed_reports:
