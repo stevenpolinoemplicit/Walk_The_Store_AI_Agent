@@ -46,6 +46,39 @@ def get_completed_tasks(project_id: str) -> List[dict]:
         raise
 
 
+# #note: Fetches all open (incomplete) tasks for a single Teamwork task list by list ID
+def get_open_tasks_by_list(task_list_id: str) -> List[dict]:
+    url = f"https://{settings.TEAMWORK_DOMAIN}.teamwork.com/tasklists/{task_list_id}/tasks.json"
+    try:
+        response = httpx.get(
+            url,
+            auth=(settings.TEAMWORK_API_TOKEN, ""),
+            timeout=30,
+            # No status filter — Teamwork default returns incomplete tasks only
+        )
+        response.raise_for_status()
+        data = response.json()
+        tasks = data.get("todo-items", [])
+        return [
+            {
+                "id": t.get("id"),
+                "name": t.get("content"),
+                "status": t.get("status"),
+                "assignee": t.get("responsible-party-summary"),
+                "due_date": t.get("due-date"),
+            }
+            for t in tasks
+        ]
+    except httpx.HTTPStatusError as e:
+        logger.error(
+            f"Teamwork API error fetching open tasks for list {task_list_id}: {e.response.status_code}"
+        )
+        raise
+    except httpx.HTTPError as e:
+        logger.error(f"Teamwork request failed for open tasks in list {task_list_id}: {e}")
+        raise
+
+
 # #note: Fetches all completed tasks for a single Teamwork task list by list ID
 def get_completed_tasks_by_list(task_list_id: str) -> List[dict]:
     url = f"https://{settings.TEAMWORK_DOMAIN}.teamwork.com/tasklists/{task_list_id}/tasks.json"
