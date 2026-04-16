@@ -5,11 +5,12 @@
 # sets sharing to Emplicit domain, and returns the shareable Drive URL.
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from config import settings
 from config.thresholds import CRITICAL, WARNING, HEALTHY, UNKNOWN
@@ -154,6 +155,25 @@ def _build_doc_text(report: HealthReport, account: AccountConfig) -> str:
         for gap in report.data_gaps:
             lines.append(f"    ⚠️ {gap}")
 
+    # Teamwork Activity section — open tasks and recent completions
+    has_open = bool(report.teamwork_open_tasks)
+    has_completed = bool(report.teamwork_completed_tasks)
+    if has_open or has_completed:
+        lines += ["", "Teamwork Activity"]
+        if has_open:
+            lines.append("  Open / In Progress")
+            for t in report.teamwork_open_tasks[:10]:
+                assignee = t.get("assignee") or "Unassigned"
+                due = t.get("due_date") or ""
+                due_str = f" — due: {due}" if due else ""
+                lines.append(f"    - {t.get('name', 'Unnamed task')} ({assignee}){due_str}")
+        if has_completed:
+            lines.append("  Recently Completed")
+            for t in report.teamwork_completed_tasks[:5]:
+                assignee = t.get("assignee") or "Unassigned"
+                completed_on = t.get("completed_on", "")
+                lines.append(f"    - ✅ {t.get('name', 'Unnamed task')} ({assignee}) — {completed_on}")
+
     lines += [
         "",
         "─" * 60,
@@ -179,6 +199,12 @@ def create_report(report: HealthReport, account: AccountConfig) -> str:
         doc = docs_service.documents().create(body={"title": doc_title}).execute()
         doc_id: str = doc["documentId"]
         logger.info(f"[{report.brand_name}] Google Doc created: doc_id={doc_id}")
+    except HttpError as e:
+        logger.error(
+            f"[{report.brand_name}] Failed to create Google Doc — "
+            f"HTTP {e.status_code} {e.reason}: {e.error_details}"
+        )
+        raise
     except Exception as e:
         logger.error(f"[{report.brand_name}] Failed to create Google Doc: {e}")
         raise
@@ -190,6 +216,12 @@ def create_report(report: HealthReport, account: AccountConfig) -> str:
             documentId=doc_id, body={"requests": requests}
         ).execute()
         logger.info(f"[{report.brand_name}] Google Doc content written")
+    except HttpError as e:
+        logger.error(
+            f"[{report.brand_name}] Failed to write Doc content — "
+            f"HTTP {e.status_code} {e.reason}: {e.error_details}"
+        )
+        raise
     except Exception as e:
         logger.error(f"[{report.brand_name}] Failed to write Doc content: {e}")
         raise
@@ -240,4 +272,73 @@ def create_report(report: HealthReport, account: AccountConfig) -> str:
 
     shareable_url = f"https://docs.google.com/document/d/{doc_id}"
     logger.info(f"[{report.brand_name}] Report ready: {shareable_url}")
+    return shareable_url
+
+
+# #note: Creates a Google Doc for the daily cross-brand ops summary and saves it to DRIVE_OPS_FOLDER_ID.
+# Returns a shareable URL. Skipped if DRIVE_OPS_FOLDER_ID is not configured.
+def create_ops_summary_doc(summary_text: str, report_date: date) -> str:
+    if not settings.DRIVE_OPS_FOLDER_ID:
+        raise ValueError("DRIVE_OPS_FOLDER_ID is not configured — cannot create ops summary doc")
+
+    creds = _get_credentials()
+    docs_service = build("docs", "v1", credentials=creds)
+    drive_service = build("drive", "v3", credentials=creds)
+
+    doc_title = f"Walk the Store — Daily Ops Summary — {report_date}"
+
+    try:
+        doc = docs_service.documents().create(body={"title": doc_title}).execute()
+        doc_id: str = doc["documentId"]
+        logger.info(f"Ops summary doc created: doc_id={doc_id}")
+    except HttpError as e:
+        logger.error(
+            f"Failed to create ops summary doc — HTTP {e.status_code} {e.reason}: {e.error_details}"
+        )
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create ops summary doc: {e}")
+        raise
+
+    try:
+        requests = [{"insertText": {"location": {"index": 1}, "text": summary_text}}]
+        docs_service.documents().batchUpdate(
+            documentId=doc_id, body={"requests": requests}
+        ).execute()
+        logger.info("Ops summary doc content written")
+    except HttpError as e:
+        logger.error(
+            f"Failed to write ops summary doc content — HTTP {e.status_code} {e.reason}: {e.error_details}"
+        )
+        raise
+    except Exception as e:
+        logger.error(f"Failed to write ops summary doc content: {e}")
+        raise
+
+    # Move to ops summary Drive folder
+    try:
+        file_meta = drive_service.files().get(fileId=doc_id, fields="parents").execute()
+        current_parents = ",".join(file_meta.get("parents", []))
+        drive_service.files().update(
+            fileId=doc_id,
+            addParents=settings.DRIVE_OPS_FOLDER_ID,
+            removeParents=current_parents,
+            fields="id, parents",
+        ).execute()
+        logger.info(f"Ops summary doc moved to Drive folder {settings.DRIVE_OPS_FOLDER_ID}")
+    except Exception as e:
+        logger.warning(f"Could not move ops summary doc to Drive folder — accessible from root: {e}")
+
+    # Set domain sharing
+    try:
+        drive_service.permissions().create(
+            fileId=doc_id,
+            body={"type": "domain", "role": "reader", "domain": "emplicit.co"},
+        ).execute()
+        logger.info("Ops summary doc sharing set to emplicit.co domain")
+    except Exception as e:
+        logger.warning(f"Could not set ops summary doc sharing permission: {e}")
+
+    shareable_url = f"https://docs.google.com/document/d/{doc_id}"
+    logger.info(f"Ops summary doc ready: {shareable_url}")
     return shareable_url
