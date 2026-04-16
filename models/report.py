@@ -34,6 +34,9 @@ class HealthReport(BaseModel):
     # Teamwork open/pending tasks for this brand (read-only)
     teamwork_open_tasks: List[dict] = []
 
+    # Drive URL for the generated Google Doc report — set by orchestrator after doc creation
+    drive_url: Optional[str] = None
+
     # Brand context summary — reserved for a future version, not populated in v1
     brand_context: Optional[str] = None
 
