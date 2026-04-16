@@ -9,6 +9,7 @@
 # Called by main.py in one-shot mode or by pg_listener.py on Postgres NOTIFY.
 
 import logging
+from datetime import date
 from typing import List, Optional
 
 from controllers.report_builder import build_brand_report, build_ops_summary
@@ -113,19 +114,63 @@ def run_agent() -> None:
     if completed_reports:
         try:
             summary = build_ops_summary(completed_reports)
-            # TEST MODE — ops summary Slack post commented out; restore before go-live
-            # slack_alerts.post_ops_summary(summary)
-            # logger.info("Ops summary posted to Slack")
-            logger.info(f"Ops summary (console only):\n{summary}")
         except Exception as e:
-            logger.error(f"Failed to post ops summary: {e}")
+            logger.error(f"Failed to build ops summary: {e}")
+            summary = None
 
-        # #note: DM always-notify users the full ops summary after every run
-        for user_id in settings.NOTIFY_ALWAYS_IDS:
+        if summary:
+            # Post full ops summary to the ops Slack channel
             try:
-                slack_alerts.send_dm(user_id, summary)
+                slack_alerts.post_ops_summary(summary)
+                logger.info("Ops summary posted to Slack ops channel")
             except Exception as e:
-                logger.error(f"Failed to DM ops summary to always-notify user {user_id}: {e}")
+                logger.error(f"Failed to post ops summary to channel: {e}")
+
+            # Create a Google Doc of the ops summary and append the link
+            ops_doc_url: Optional[str] = None
+            try:
+                from tools.report_generator import create_ops_summary_doc
+                ops_doc_url = create_ops_summary_doc(summary, date.today())
+                logger.info(f"Ops summary doc created: {ops_doc_url}")
+            except Exception as e:
+                logger.warning(f"Ops summary doc creation failed — Slack message will have no Drive link: {e}")
+
+            full_summary = summary
+            if ops_doc_url:
+                full_summary += f"\n\n📄 <{ops_doc_url}|View in Drive>"
+
+            # #note: DM always-notify users (Steven + Adam) the full summary with Drive link
+            for user_id in settings.NOTIFY_ALWAYS_IDS:
+                try:
+                    slack_alerts.send_dm(user_id, full_summary)
+                    logger.info(f"Full ops summary DM sent to always-notify user {user_id}")
+                except Exception as e:
+                    logger.error(f"Failed to DM ops summary to always-notify user {user_id}: {e}")
+
+            # #note: Build brand_code → AccountConfig lookup to find each report's ops manager
+            accounts_by_code: dict[str, AccountConfig] = {a.brand_code: a for a in accounts}
+
+            # Group reports by ops manager, excluding always-notify users who already got everything
+            ops_reports: dict[str, list[HealthReport]] = {}
+            for report in completed_reports:
+                account = accounts_by_code.get(report.brand_code)
+                if (
+                    account
+                    and account.ops_slack_id
+                    and account.ops_slack_id not in settings.NOTIFY_ALWAYS_IDS
+                ):
+                    ops_reports.setdefault(account.ops_slack_id, []).append(report)
+
+            # #note: DM each ops manager a filtered summary showing only their brands
+            for ops_user_id, their_reports in ops_reports.items():
+                try:
+                    filtered_summary = build_ops_summary(their_reports)
+                    if ops_doc_url:
+                        filtered_summary += f"\n\n📄 <{ops_doc_url}|View Full Summary in Drive>"
+                    slack_alerts.send_dm(ops_user_id, filtered_summary)
+                    logger.info(f"Filtered ops summary DM sent to ops manager {ops_user_id}")
+                except Exception as e:
+                    logger.error(f"Failed to DM filtered ops summary to ops manager {ops_user_id}: {e}")
     else:
         logger.warning("No reports completed — ops summary skipped")
 
