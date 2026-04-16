@@ -108,7 +108,7 @@ def save_report(report: HealthReport) -> None:
 # CONFIRMED (from columns_for_5_tables.txt, shipping table): date column = download_date (date).
 # CONFIRMED: tables are append-only — new rows inserted daily, no upserts. ORDER BY download_date DESC LIMIT 1 is correct.
 # NOTE: account_id / country_code / download_date confirmed for shipping table; assumed consistent across all 4 tables.
-def get_account_health_metrics(account_id: int, country_code: str) -> dict:
+def get_account_health_metrics(account_id: int, country_code: str, fbm: bool = False, fba: bool = True) -> dict:
     metrics: dict = {
         "late_shipment_rate": None,
         "valid_tracking_rate": None,
@@ -151,10 +151,11 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
 
                 # Customer service — order defect rate
                 # april15 CONFIRMED via pgAdmin: table exists, columns confirmed
+                # FBA brands use afn_rate; FBM brands use mfn_rate; hybrid takes the worse (higher) of both
                 try:
                     cur.execute(
                         """
-                        SELECT order_defect_rate_afn_rate
+                        SELECT order_defect_rate_afn_rate, order_defect_rate_mfn_rate
                         FROM amazon_source_data.sellercentral_sellerperformance_customerserviceperformance_report
                         WHERE account_id = %s AND country_code = %s
                         ORDER BY download_date DESC LIMIT 1
@@ -164,8 +165,17 @@ def get_account_health_metrics(account_id: int, country_code: str) -> dict:
                     row = cur.fetchone()
                     if row:
                         # DB stores rate as decimal (0.01 = 1%) — multiply by 100 to match percentage thresholds
-                        odr = row.get("order_defect_rate_afn_rate")
-                        metrics["order_defect_rate"] = float(odr) * 100 if odr is not None else None
+                        afn = row.get("order_defect_rate_afn_rate")
+                        mfn = row.get("order_defect_rate_mfn_rate")
+                        if fbm and fba:
+                            # Hybrid — take the worse (higher) rate across both fulfillment types
+                            rates = [float(r) * 100 for r in [afn, mfn] if r is not None]
+                            metrics["order_defect_rate"] = max(rates) if rates else None
+                        elif fbm:
+                            metrics["order_defect_rate"] = float(mfn) * 100 if mfn is not None else None
+                        else:
+                            # FBA only or unset — use afn_rate
+                            metrics["order_defect_rate"] = float(afn) * 100 if afn is not None else None
                 except Exception as e:
                     logger.warning(f"Customer service metrics query failed for {account_id}: {e}")
 
