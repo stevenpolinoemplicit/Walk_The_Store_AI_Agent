@@ -8,7 +8,7 @@ from datetime import date
 from typing import List, Optional
 
 from controllers.classifier import classify_account
-from config.thresholds import CRITICAL, WARNING, HEALTHY
+from config.thresholds import CRITICAL, WARNING, HEALTHY, UNKNOWN
 from models.account import AccountConfig
 from models.report import HealthReport
 from tools import postgres, teamwork
@@ -51,7 +51,7 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
     else:
         try:
             metrics_raw = postgres.get_account_health_metrics(
-                account.account_id, account.country_code
+                account.account_id, account.country_code, fbm=account.fbm, fba=account.fba
             )
         except Exception:
             logger.warning(f"[{brand}] Health metrics unavailable — logged as gap")
@@ -91,8 +91,8 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
         "account_status": metrics_raw.get("account_status"),
     }
 
-    # Classify
-    findings, highest_severity = classify_account(metrics)
+    # Classify — VTR only applies to FBM brands (they control their own tracking)
+    findings, highest_severity = classify_account(metrics, check_vtr=account.fbm)
 
     return HealthReport(
         brand_code=account.brand_code,
@@ -121,7 +121,8 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
 def build_ops_summary(reports: List[HealthReport]) -> str:
     critical = [r for r in reports if r.highest_severity == CRITICAL]
     warning = [r for r in reports if r.highest_severity == WARNING]
-    healthy = [r for r in reports if r.highest_severity == HEALTHY]
+    # UNKNOWN means all metrics returned None (no data) — treat as no issues for summary grouping
+    healthy = [r for r in reports if r.highest_severity in (HEALTHY, UNKNOWN)]
 
     lines = [
         f"*Walk the Store — Daily Summary ({date.today()})*",
