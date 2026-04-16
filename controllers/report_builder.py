@@ -8,7 +8,7 @@ from datetime import date
 from typing import List, Optional
 
 from controllers.classifier import classify_account
-from config.thresholds import CRITICAL, WARNING
+from config.thresholds import CRITICAL, WARNING, HEALTHY
 from models.account import AccountConfig
 from models.report import HealthReport
 from tools import postgres, teamwork
@@ -59,6 +59,7 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
 
     # Teamwork: completed tasks — iterate all task lists for this brand and aggregate results
     completed_tasks: list[dict] = []
+    open_tasks: list[dict] = []
     for dept, list_id in account.tw_task_lists.items():
         if not list_id:
             continue
@@ -66,9 +67,14 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
             tasks = teamwork.get_completed_tasks_by_list(list_id)
             completed_tasks.extend(tasks)
         except Exception:
-            logger.warning(f"[{brand}] Teamwork list '{dept}' unavailable — skipping")
+            logger.warning(f"[{brand}] Teamwork completed tasks for list '{dept}' unavailable — skipping")
             if "teamwork" not in data_gaps:
                 data_gaps.append("teamwork")
+        try:
+            pending = teamwork.get_open_tasks_by_list(list_id)
+            open_tasks.extend(pending)
+        except Exception:
+            logger.warning(f"[{brand}] Teamwork open tasks for list '{dept}' unavailable — skipping")
 
     # Brand context not implemented in v1
     brand_ctx: Optional[str] = None
@@ -103,16 +109,19 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
         food_safety_count=metrics["food_safety_count"],
         ip_complaint_count=metrics["ip_complaint_count"],
         teamwork_completed_tasks=completed_tasks,
+        teamwork_open_tasks=open_tasks,
         brand_context=brand_ctx,
         data_gaps=data_gaps,
     )
 
 
-# #note: Generates a plain-text cross-brand summary from a list of completed reports
+# #note: Generates a plain-text cross-brand summary from a list of completed reports.
+# Critical accounts listed first with top 4 findings; warning accounts with top 3 findings;
+# healthy accounts collapsed into a single comma-separated line.
 def build_ops_summary(reports: List[HealthReport]) -> str:
-    critical = [r for r in reports if r.highest_severity == "critical"]
-    warning = [r for r in reports if r.highest_severity == "warning"]
-    healthy = [r for r in reports if r.highest_severity == "healthy"]
+    critical = [r for r in reports if r.highest_severity == CRITICAL]
+    warning = [r for r in reports if r.highest_severity == WARNING]
+    healthy = [r for r in reports if r.highest_severity == HEALTHY]
 
     lines = [
         f"*Walk the Store — Daily Summary ({date.today()})*",
@@ -134,5 +143,13 @@ def build_ops_summary(reports: List[HealthReport]) -> str:
         lines.append("*Warning accounts:*")
         for r in warning:
             lines.append(f"  • {r.brand_name}")
+            alert_findings = [f for f in r.findings if f.severity in (CRITICAL, WARNING)][:3]
+            for f in alert_findings:
+                emoji = "🔴" if f.severity == CRITICAL else "🟡"
+                lines.append(f"      {emoji} {f.message}")
+
+    if healthy:
+        healthy_names = ", ".join(r.brand_name for r in healthy)
+        lines.append(f"*Healthy accounts:* {healthy_names}")
 
     return "\n".join(lines)
