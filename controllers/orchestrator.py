@@ -90,6 +90,7 @@ def run_agent() -> None:
         try:
             from tools.report_generator import create_report
             drive_url = create_report(report, account)
+            report.drive_url = drive_url
             logger.info(f"[{account.brand_name}] Drive report created: {drive_url}")
         except Exception as e:
             logger.error(
@@ -147,30 +148,31 @@ def run_agent() -> None:
                 except Exception as e:
                     logger.error(f"Failed to DM ops summary to always-notify user {user_id}: {e}")
 
-            # #note: Build brand_code → AccountConfig lookup to find each report's ops manager
-            accounts_by_code: dict[str, AccountConfig] = {a.brand_code: a for a in accounts}
+            # TEST MODE — ops manager DMs commented out; restore before go-live
+            # # #note: Build brand_code → AccountConfig lookup to find each report's ops manager
+            # accounts_by_code: dict[str, AccountConfig] = {a.brand_code: a for a in accounts}
 
-            # Group reports by ops manager, excluding always-notify users who already got everything
-            ops_reports: dict[str, list[HealthReport]] = {}
-            for report in completed_reports:
-                account = accounts_by_code.get(report.brand_code)
-                if (
-                    account
-                    and account.ops_slack_id
-                    and account.ops_slack_id not in settings.NOTIFY_ALWAYS_IDS
-                ):
-                    ops_reports.setdefault(account.ops_slack_id, []).append(report)
+            # # Group reports by ops manager, excluding always-notify users who already got everything
+            # ops_reports: dict[str, list[HealthReport]] = {}
+            # for report in completed_reports:
+            #     account = accounts_by_code.get(report.brand_code)
+            #     if (
+            #         account
+            #         and account.ops_slack_id
+            #         and account.ops_slack_id not in settings.NOTIFY_ALWAYS_IDS
+            #     ):
+            #         ops_reports.setdefault(account.ops_slack_id, []).append(report)
 
-            # #note: DM each ops manager a filtered summary showing only their brands
-            for ops_user_id, their_reports in ops_reports.items():
-                try:
-                    filtered_summary = build_ops_summary(their_reports)
-                    if ops_doc_url:
-                        filtered_summary += f"\n\n📄 <{ops_doc_url}|View Full Summary in Drive>"
-                    slack_alerts.send_dm(ops_user_id, filtered_summary)
-                    logger.info(f"Filtered ops summary DM sent to ops manager {ops_user_id}")
-                except Exception as e:
-                    logger.error(f"Failed to DM filtered ops summary to ops manager {ops_user_id}: {e}")
+            # # #note: DM each ops manager a filtered summary showing only their brands
+            # for ops_user_id, their_reports in ops_reports.items():
+            #     try:
+            #         filtered_summary = build_ops_summary(their_reports)
+            #         if ops_doc_url:
+            #             filtered_summary += f"\n\n📄 <{ops_doc_url}|View Full Summary in Drive>"
+            #         slack_alerts.send_dm(ops_user_id, filtered_summary)
+            #         logger.info(f"Filtered ops summary DM sent to ops manager {ops_user_id}")
+            #     except Exception as e:
+            #         logger.error(f"Failed to DM filtered ops summary to ops manager {ops_user_id}: {e}")
     else:
         logger.warning("No reports completed — ops summary skipped")
 
