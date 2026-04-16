@@ -15,7 +15,6 @@ class AccountConfig(BaseModel):
     brand_name: str                             # sheet: brand_name — display name for reports
     mws_seller_id: str                          # sheet: seller_id — bare MWS string (e.g. A2M0WKTGB6GQB6)
     account_id: Optional[int] = None            # resolved at startup via Postgres account_status_changed_report
-    country_code: str = "US"                    # hardcoded for POC — all brands are US marketplace
     slack_channel_id: str                       # sheet: internal_brand_slack_id
     ops_slack_id: Optional[str] = None          # People Lookup sheet: slack_user_id for this brand's ops manager (col I: ops_brands)
     drive_folder_id: str = POC_DRIVE_FOLDER_ID  # shared POC Drive folder for all reports
