@@ -91,8 +91,12 @@ def build_brand_report(account: AccountConfig) -> HealthReport:
         "account_status": metrics_raw.get("account_status"),
     }
 
-    # Classify — VTR only applies to FBM brands (they control their own tracking)
-    findings, highest_severity = classify_account(metrics, check_vtr=account.fbm)
+    # Classify — shipping metrics (LSR, VTR, pre-cancel) only apply to FBM brands
+    findings, highest_severity = classify_account(
+        metrics,
+        check_shipping=account.fbm,
+        check_vtr=account.fbm,
+    )
 
     return HealthReport(
         brand_code=account.brand_code,
