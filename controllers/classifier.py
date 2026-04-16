@@ -197,21 +197,26 @@ def classify_account_status(status: Optional[str]) -> Finding:
 
 
 # #note: Runs all classifiers against a dict of raw metric values and returns (findings, highest_severity).
-# check_vtr=False suppresses VTR alerts (brand not enrolled in FMB tracking) — finding is set to HEALTHY.
-def classify_account(metrics: dict, check_vtr: bool = True) -> tuple[list[Finding], str]:
-    if check_vtr:
-        vtr_finding = classify_valid_tracking_rate(metrics.get("valid_tracking_rate"))
-    else:
-        vtr_finding = Finding(
+# check_shipping=False suppresses LSR, VTR, and pre-cancel for FBA-only brands (Amazon handles their shipping).
+# check_vtr=False suppresses VTR alone for brands that do FBA but not FBM.
+def classify_account(metrics: dict, check_shipping: bool = True, check_vtr: bool = True) -> tuple[list[Finding], str]:
+    if check_shipping:
+        lsr_finding = classify_late_shipment_rate(metrics.get("late_shipment_rate"))
+        vtr_finding = classify_valid_tracking_rate(metrics.get("valid_tracking_rate")) if check_vtr else Finding(
             check="valid_tracking_rate",
             severity=HEALTHY,
             message="Valid tracking rate: not monitored for this brand",
         )
+        pcr_finding = classify_pre_cancel_rate(metrics.get("pre_cancel_rate"))
+    else:
+        lsr_finding = Finding(check="late_shipment_rate", severity=HEALTHY, message="Late shipment rate: not monitored for this brand")
+        vtr_finding = Finding(check="valid_tracking_rate", severity=HEALTHY, message="Valid tracking rate: not monitored for this brand")
+        pcr_finding = Finding(check="pre_cancel_rate", severity=HEALTHY, message="Pre-fulfillment cancel rate: not monitored for this brand")
 
     findings = [
-        classify_late_shipment_rate(metrics.get("late_shipment_rate")),
+        lsr_finding,
         vtr_finding,
-        classify_pre_cancel_rate(metrics.get("pre_cancel_rate")),
+        pcr_finding,
         classify_order_defect_rate(metrics.get("order_defect_rate")),
         classify_account_health_rating(metrics.get("account_health_rating")),
         classify_food_safety(metrics.get("food_safety_count")),
