@@ -18,46 +18,8 @@ from models.account import AccountConfig
 from models.report import HealthReport
 from tools import postgres, slack_alerts
 from tools import sheets_reader
-from views.slack_formatter import format_notification
 
 logger = logging.getLogger(__name__)
-
-
-# #note: Routes a single brand report to Slack — posts notification with Drive link on critical/warning,
-#        DMs the brand's ops manager directly on critical. Healthy accounts are silent.
-def _route_alerts(
-    report: HealthReport,
-    account: AccountConfig,
-    drive_url: Optional[str],
-) -> None:
-    if report.highest_severity in ("critical", "warning"):
-        # TEST MODE — brand channel posts commented out; restore before go-live
-        # try:
-        #     text, blocks = format_notification(report, drive_url)
-        #     slack_alerts.post_to_channel(account.slack_channel_id, text, blocks, drive_url)
-        #     logger.info(
-        #         f"[{report.brand_name}] Slack alert posted to channel {account.slack_channel_id}"
-        #     )
-        # except Exception as e:
-        #     logger.error(f"[{report.brand_name}] Failed to post channel alert: {e}")
-
-        # #note: DM always-notify users on every warning or critical brand alert
-        # TEST MODE — always-notify DMs commented out; restore before go-live
-        # for user_id in settings.NOTIFY_ALWAYS_IDS:
-        #     try:
-        #         text, blocks = format_notification(report, drive_url)
-        #         slack_alerts.send_dm(user_id, text, blocks)
-        #     except Exception as e:
-        #         logger.error(f"[{report.brand_name}] Failed to DM always-notify user {user_id}: {e}")
-        pass
-
-    # TEST MODE — ops manager DMs commented out; restore before go-live
-    # if report.highest_severity == "critical":
-    #     try:
-    #         text, blocks = format_notification(report, drive_url)
-    #         slack_alerts.send_dm(account.ops_slack_id, text, blocks)
-    #     except Exception as e:
-    #         logger.error(f"[{report.brand_name}] Failed to send DM to ops manager: {e}")
 
 
 # #note: Main agent run — called by main.py or pg_listener; processes every active account end-to-end
@@ -115,9 +77,6 @@ def run_agent() -> None:
                     f"[{report.brand_name}] Drive report generation failed — "
                     f"Slack alert will still send without link: {e}"
                 )
-
-            # Route Slack alerts (failure here does not stop Postgres save)
-            _route_alerts(report, account, drive_url)
 
             # Save to Postgres (failure here does not crash the run)
             try:
