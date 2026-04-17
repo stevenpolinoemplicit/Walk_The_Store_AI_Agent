@@ -86,10 +86,11 @@ Walk_The_Store_AI_Agent/
 │   ├── google_auth.py             # Shared Google auth helper (file path + JSON string + DWD)
 │   ├── slack_alerts.py            # Posts to channels, sends DMs
 │   └── teamwork.py                # Fetches open + completed tasks per task list
-├── docs/
+├── info/
 │   ├── walk_the_store_schema.sql  # Postgres schema for walk_the_store.daily_health_reports
 │   ├── CLOUD_RUN_DEPLOY.md        # Step-by-step GCP deployment guide
-│   └── CLAUDE_ENTERPRISE_SETUP.md # Ask Emplicit / Drive connector setup
+│   ├── CLAUDE_ENTERPRISE_SETUP.md # Ask Emplicit / Drive connector setup
+│   └── SETUP.md                   # Setup checklist (local → GCP)
 ├── Dockerfile                     # Python 3.13-slim, CMD python main.py
 ├── CLAUDE.md                      # AI coding standards (auto-loaded by Claude Code)
 ├── pyproject.toml                 # Python project config + Black settings
@@ -167,7 +168,7 @@ Check logs for:
 
 Deployed as a **Cloud Run Job** triggered by **Cloud Scheduler** at 7:00 AM Los Angeles time (`0 7 * * *` — handles daylight saving automatically).
 
-Follow `docs/CLOUD_RUN_DEPLOY.md` for the full step-by-step guide covering:
+Follow `info/CLOUD_RUN_DEPLOY.md` for the full step-by-step guide covering:
 - GCP project setup and IAM
 - Artifact Registry + Docker build
 - Secret Manager configuration
