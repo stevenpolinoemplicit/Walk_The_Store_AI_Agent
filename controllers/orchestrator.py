@@ -153,27 +153,42 @@ def run_agent() -> None:
             # #note: Build brand_code → AccountConfig lookup to find each report's ops manager
             accounts_by_code: dict[str, AccountConfig] = {a.brand_code: a for a in accounts}
 
-            # Group reports by ops manager, excluding always-notify users who already got everything
-            ops_reports: dict[str, list[HealthReport]] = {}
-            for report in completed_reports:
-                account = accounts_by_code.get(report.brand_code)
-                if (
-                    account
-                    and account.ops_slack_id
-                    and account.ops_slack_id not in settings.NOTIFY_ALWAYS_IDS
-                ):
-                    ops_reports.setdefault(account.ops_slack_id, []).append(report)
+            # #note: On weekends (Sat/Sun), skip per-ops-manager DMs and send the full summary to on-call
+            #        coverage team instead: Axel, Kay, Milagros, Albenis
+            is_weekend = date.today().weekday() >= 5  # 5=Saturday, 6=Sunday
 
-            # #note: DM each ops manager a filtered summary showing only their brands
-            for ops_user_id, their_reports in ops_reports.items():
-                try:
-                    filtered_summary = build_ops_summary(their_reports)
-                    if ops_doc_url:
-                        filtered_summary += f"\n\n📄 <{ops_doc_url}|View Full Summary in Drive>"
-                    slack_alerts.send_dm(ops_user_id, filtered_summary)
-                    logger.info(f"Filtered ops summary DM sent to ops manager {ops_user_id}")
-                except Exception as e:
-                    logger.error(f"Failed to DM filtered ops summary to ops manager {ops_user_id}: {e}")
+            if is_weekend:
+                for oncall_id in settings.WEEKEND_ONCALL_IDS:
+                    try:
+                        weekend_summary = full_summary
+                        slack_alerts.send_dm(oncall_id, weekend_summary)
+                        logger.info(f"Weekend on-call summary DM sent to {oncall_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to DM weekend on-call summary to {oncall_id}: {e}")
+            else:
+                # Group reports by ops manager, excluding always-notify users who already got everything
+                ops_reports: dict[str, list[HealthReport]] = {}
+                for report in completed_reports:
+                    # report.brand_code is "{brand_code}_{country}" — strip suffix to find the AccountConfig
+                    base_code = report.brand_code.rsplit("_", 1)[0]
+                    account = accounts_by_code.get(base_code)
+                    if (
+                        account
+                        and account.ops_slack_id
+                        and account.ops_slack_id not in settings.NOTIFY_ALWAYS_IDS
+                    ):
+                        ops_reports.setdefault(account.ops_slack_id, []).append(report)
+
+                # #note: DM each ops manager a filtered summary showing only their brands
+                for ops_user_id, their_reports in ops_reports.items():
+                    try:
+                        filtered_summary = build_ops_summary(their_reports)
+                        if ops_doc_url:
+                            filtered_summary += f"\n\n📄 <{ops_doc_url}|View Full Summary in Drive>"
+                        slack_alerts.send_dm(ops_user_id, filtered_summary)
+                        logger.info(f"Filtered ops summary DM sent to ops manager {ops_user_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to DM filtered ops summary to ops manager {ops_user_id}: {e}")
     else:
         logger.warning("No reports completed — ops summary skipped")
 
