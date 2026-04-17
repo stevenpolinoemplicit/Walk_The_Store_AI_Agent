@@ -8,10 +8,10 @@
 
 ## Project Overview
 
-An autonomous AI agent that runs daily at 9:00 AM ET. It checks Amazon account health for multiple client brands, classifies issues by severity, cross-references Teamwork for resolution activity, and delivers actionable reports via Slack.
+An autonomous AI agent that runs daily at 7:00 AM Los Angeles time. It checks Amazon account health for multiple client brands, classifies issues by severity, cross-references Teamwork for resolution activity, and delivers actionable reports via Slack.
 
 **Sprint 1 Scope:** Account Health only.
-**Owner:** Steven Chicken
+**Owner:** Steven Polino
 **Approvers:** Adam Weiler, Emily Lindahl
 
 ---
@@ -43,7 +43,6 @@ Inventory health, inbound/shipment status, performance notifications, case log r
 | Task Tracking | Teamwork API via `httpx` (read-only) |
 | Alerts | Slack (`slack_sdk`) |
 | Data Validation | `pydantic` |
-| UI | `gradio` |
 | Hosting | Google Cloud (Cloud Run + Cloud Scheduler) |
 | Containerization | Docker |
 | Formatter | Black (see CLAUDE.md) |
