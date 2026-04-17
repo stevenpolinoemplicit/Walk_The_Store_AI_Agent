@@ -42,17 +42,15 @@ def _safe_int(data: dict, key: str, brand: str) -> Optional[int]:
 def build_brand_reports(account: AccountConfig) -> List[HealthReport]:
     brand = account.brand_name
 
-    # Fetch metrics for all countries from Postgres
+    # Fetch metrics per country — each country has its own Intentwise account_id from the sheet
     metrics_by_country: dict[str, dict] = {}
-    if account.account_id is None:
-        logger.warning(f"[{brand}] account_id not resolved — skipping health metrics")
-    else:
+    for cc, acc_id in account.account_ids.items():
         try:
-            metrics_by_country = postgres.get_account_health_metrics(
-                account.account_id, fbm=account.fbm, fba=account.fba
+            metrics_by_country[cc] = postgres.get_account_health_metrics(
+                acc_id, cc, fbm=account.fbm, fba=account.fba
             )
         except Exception:
-            logger.warning(f"[{brand}] Health metrics unavailable — logged as gap")
+            logger.warning(f"[{brand}] Health metrics unavailable for {cc} (account_id={acc_id}) — logged as gap")
 
     # Teamwork: fetched once per brand, attached to all country reports
     completed_tasks: list[dict] = []
