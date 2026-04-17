@@ -197,7 +197,21 @@ bugfix/name_of_bug
 
 ---
 
-## 10. Claude Behavior Rules
+## 10. Bash Output Efficiency
+
+**Always limit Bash output size.** Large command outputs waste context tokens and slow sessions.
+
+- **Pipe through `| head -N`** for any command that may produce many lines (logs, build output, listings)
+- **Use `grep` to filter** before returning output — e.g. `gcloud logging read ... | grep -E "ERROR|critical"`
+- **Never `cat` large files** — use the `Read` tool with `offset`/`limit` instead
+- **For build commands** (`gcloud builds submit`, `pip install`): use `--async` when you don't need the full output immediately, or pipe to `| tail -10` to capture only the result
+- **For `gcloud logging read`**: always include `--limit=N` and filter with `grep` — never return raw full log dumps
+
+> This rule exists because Bash results used 33.7k tokens (17% of context) in a single session from unfiltered build logs and log dumps.
+
+---
+
+## 11. Claude Behavior Rules
 ### Project Commencement 
 **Claude must verify Scope has been approved by Steven and full project outline with major features**
 - Request the user verify they have completed scope with Steven
@@ -249,7 +263,7 @@ Wait for the user to confirm before calling the tool.
 
 ---
 
-## 11. Deployment Checklist (Pre-Deploy)
+## 12. Deployment Checklist (Pre-Deploy)
 
 - [ ] All secrets are in `.env`, not in source code
 - [ ] `.env` is in `.gitignore`
@@ -264,7 +278,7 @@ Wait for the user to confirm before calling the tool.
 
 ---
 
-## 12. memory.md — Project Memory Log
+## 13. memory.md — Project Memory Log
 
 Every project must have a `memory.md` file in the repo root. It is the persistent record of everything that has happened in this project across all sessions.
 
@@ -291,7 +305,7 @@ Every project must have a `memory.md` file in the repo root. It is the persisten
 Anyone on the team (human or Claude) who makes a meaningful change should add a note to `memory.md`. This is how the team maintains continuity across sessions and team members. ATTETNTION CLAUDE IDE OR EXTENSION. IF YOU ARE CONNECTED TO THESE FILES IN A SESSION, THIS IS YOUR RESPONSIBILITY
 
 ---
-## 13. Session Resumption — Saving Your Claude Session ID
+## 14. Session Resumption — Saving Your Claude Session ID
 
 When a Claude Code session ends, its conversation history can be resumed with `claude --resume <session_id>`. To avoid losing context between sessions, every project should save the resume command automatically.
 
@@ -358,7 +372,7 @@ claude --resume <session_id>
 
 ---
 
-## 14. Claude Code Skills — Slash Commands
+## 15. Claude Code Skills — Slash Commands
 
 Every project must maintain a `claude_skills_list.md` file in the repo root. It is the single source of truth for all available slash commands in this project.
 
