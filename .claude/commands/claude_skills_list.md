@@ -74,6 +74,13 @@ Skills are prompts — Claude reads the command file and executes the instructio
 
 ## Deployment & Quality
 
+### `/trim-bash`
+**File:** `.claude/commands/trim-bash.md`
+**Description:** Reviews the last Bash command output and suggests trimmed alternatives using `| head`, `| grep`, `--limit`, or `--async`. Reminds Claude of the output efficiency rules for this project.
+**When to use:** If a Bash command returned a large wall of output. Also serves as a reminder — the rules from this skill are enforced automatically via CLAUDE.md Section 10.
+
+---
+
 ### `/deploy-checklist`
 **File:** `.claude/commands/deploy-checklist.md`
 **Description:** Runs through the full pre-deployment checklist from CLAUDE.md Section 11 — secrets, code quality, formatting, Python version, GCP setup — and reports pass/fail for each item.
@@ -118,4 +125,4 @@ Skills are prompts — Claude reads the command file and executes the instructio
 3. The skill is immediately available as `/your-skill-name` in any Claude Code session
 
 ---
-*Last updated: 2026-04-08*
+*Last updated: 2026-04-17*
