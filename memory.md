@@ -16,6 +16,42 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 20 — Teamwork auth fix, repo cleanup, docs moved to info/
+**Date:** 2026-04-17
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Teamwork auth password changed to `"x"`** — Teamwork v1 Basic auth convention is `(token, "x")`; empty string `""` may be rejected by some instances; `.strip()` was already applied in settings.py so trailing newline was not the root cause
+- **Response body added to Teamwork error logs** — previously only status code was logged; `e.response.text[:500]` now appears so the next run will show the actual Teamwork error message (401/403/404 + reason)
+- **`_route_alerts` function removed permanently** — function was dead code (`pass` only); per-brand alert routing is not part of the final design; call site and `format_notification` import removed alongside it
+- **`gradio` and `huggingface_hub` removed from dependencies** — neither is used anywhere in the codebase; both bloat the Docker image; removed from `pyproject.toml`
+- **`docs/` folder contents moved to `info/`** — user is deleting the `docs/` folder; all three files copied to `info/`; README and deploy-checklist references updated
+- **`.env` security check passed** — `git log --oneline -- .env` returned empty; file was never committed to history
+- **`.claude/settings.local.json` added to `.gitignore`** — file existed but wasn't ignored; machine-specific Claude local settings should not be committed
+
+#### Files Created
+- `info/CLOUD_RUN_DEPLOY.md` — copy of docs/ version; updated `echo -n` → `printf`, scheduler command updated to `America/Los_Angeles` + 7:00 AM, `printf` note added to secrets section
+- `info/CLAUDE_ENTERPRISE_SETUP.md` — copy of docs/ version; time updated to LA timezone
+- `info/walk_the_store_schema.sql` — copy of docs/ version; unchanged
+- `info/RESOURCE.md` — copy of root RESOURCE.md; root copy pending manual delete by user
+
+#### Files Updated
+- `tools/teamwork.py` — auth `("", "")` → `(token, "x")` in all 3 functions; `e.response.text[:500]` added to all `HTTPStatusError` error logs
+- `controllers/orchestrator.py` — removed `_route_alerts` function + call site + `format_notification` import; blank line formatting fix
+- `pyproject.toml` — removed `gradio` and `huggingface_hub` from dependencies
+- `PROJECT_SCOPE.md` — owner "Steven Chicken" → "Steven Polino"; run time "9:00 AM ET" → "7:00 AM Los Angeles time"; gradio row removed from tech stack table
+- `.gitignore` — added `.claude/settings.local.json`
+- `.claude/commands/deploy-checklist.md` — "Section 11" → "Section 12"; scheduler time corrected to "7:00 AM Los Angeles time"
+- `README.md` — `docs/` → `info/` in project structure and deployment section
+
+#### Still To Do
+- [ ] Teamwork tasks — next run logs will reveal actual error (401/403/404); diagnose and fix based on those logs
+- [ ] `DRIVE_OPS_FOLDER_ID` — user confirmed ops summary doc issue is already fixed; monitor next run to confirm
+- [ ] Manual deletes: `docs/` folder, root `RESOURCE.md`, `info/1`, `info/account_id_and_account_name`, `info/recent_query`
+- [ ] Redeploy required — `tools/teamwork.py` and `controllers/orchestrator.py` changed; rebuild image and update Cloud Run Job
+
+---
+
 ### Session 19 — GCP deployment live, DWD fixed, trailing newline secrets fixed, scheduler set up
 **Date:** 2026-04-17
 **Participants:** Claude Code
