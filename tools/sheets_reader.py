@@ -1,7 +1,9 @@
 # sheets_reader.py — Loads active brand accounts from Google Sheets.
 # Replaces postgres.get_active_accounts(). Reads the Brand Code Mapping Sheet for brand config
 # and the People Lookup Sheet to find each brand's AM Slack ID.
-# account_id is read directly from the iw_account_id column (column S) in the Brand Code Mapping Sheet.
+# Per-country Intentwise account IDs are read from cols S (iw_account_id_us), T (iw_account_id_ca),
+# U (iw_account_id_mx). Only numeric values are used — blank or non-numeric entries are skipped.
+# FBM is col V, FBA is col W.
 
 import logging
 from typing import List, Optional
@@ -94,15 +96,21 @@ def get_active_accounts() -> List[AccountConfig]:
             logger.warning(f"Skipping row with missing brand_code or seller_id: {row}")
             continue
 
-        # #note: iw_account_id (column S) is the numeric Intentwise account_id — read directly from sheet
-        raw_account_id = row.get("iw_account_id", "")
-        try:
-            account_id = int(raw_account_id)
-        except (ValueError, TypeError):
-            # Missing iw_account_id is expected for brands not contracted for this service — skip silently
-            logger.debug(
-                f"[{brand_code}] iw_account_id '{raw_account_id}' is missing — skipping (not in scope)"
-            )
+        # #note: Per-country Intentwise account IDs from cols S/T/U — only numeric values are used
+        _country_cols = {
+            "US": row.get("iw_account_id_us", ""),
+            "CA": row.get("iw_account_id_ca", ""),
+            "MX": row.get("iw_account_id_mx", ""),
+        }
+        account_ids: dict[str, int] = {}
+        for cc, raw in _country_cols.items():
+            try:
+                account_ids[cc] = int(raw)
+            except (ValueError, TypeError):
+                logger.debug(f"[{brand_code}] iw_account_id_{cc.lower()} '{raw}' is not numeric — skipping country")
+
+        if not account_ids:
+            logger.debug(f"[{brand_code}] No valid country account IDs — skipping (not in scope)")
             continue
 
         # #note: Strip tw_ prefix and _task_list suffix to get clean dept keys (e.g. "marketing")
@@ -111,7 +119,7 @@ def get_active_accounts() -> List[AccountConfig]:
             for col in _TW_COLUMNS
         }
 
-        # #note: FBM col U — 1 means brand ships its own orders (MFN); FBA col V — 1 means Amazon fulfills
+        # #note: FBM col V — 1 means brand ships its own orders (MFN); FBA col W — 1 means Amazon fulfills
         fbm = str(row.get("FBM", "")).strip() == "1"
         fba = str(row.get("FBA", "")).strip() == "1"
 
@@ -120,7 +128,7 @@ def get_active_accounts() -> List[AccountConfig]:
                 brand_code=brand_code,
                 brand_name=str(row.get("brand_name", brand_code)).strip(),
                 mws_seller_id=mws_seller_id,
-                account_id=account_id,
+                account_ids=account_ids,
                 slack_channel_id=str(row.get("internal_brand_slack_id", "")).strip(),
                 ops_slack_id=ops_lookup.get(brand_code),
                 tw_task_lists=tw_task_lists,
@@ -128,7 +136,7 @@ def get_active_accounts() -> List[AccountConfig]:
                 fba=fba,
             )
         )
-        logger.info(f"Loaded account: {brand_code} (account_id={account_id})")
+        logger.info(f"Loaded account: {brand_code} (countries={list(account_ids.keys())})")
 
     logger.info(f"sheets_reader loaded {len(accounts)} active accounts")
     return accounts
