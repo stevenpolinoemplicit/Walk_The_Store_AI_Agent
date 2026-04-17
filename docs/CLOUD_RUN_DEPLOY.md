@@ -62,6 +62,8 @@ echo -n "your-value" | gcloud secrets create TEAMWORK_DOMAIN --data-file=- --pro
 echo -n "your-value" | gcloud secrets create TEAMWORK_API_TOKEN --data-file=- --project=$PROJECT_ID
 echo -n "your-value" | gcloud secrets create BRAND_SHEET_ID --data-file=- --project=$PROJECT_ID
 echo -n "your-value" | gcloud secrets create PEOPLE_SHEET_ID --data-file=- --project=$PROJECT_ID
+echo -n "your-value" | gcloud secrets create GOOGLE_IMPERSONATION_EMAIL --data-file=- --project=$PROJECT_ID
+echo -n "your-value" | gcloud secrets create DRIVE_OPS_FOLDER_ID --data-file=- --project=$PROJECT_ID
 
 # For Google service account JSON — store the file contents directly
 gcloud secrets create GOOGLE_SERVICE_ACCOUNT_JSON \
@@ -90,6 +92,8 @@ TEAMWORK_DOMAIN=TEAMWORK_DOMAIN:latest,\
 TEAMWORK_API_TOKEN=TEAMWORK_API_TOKEN:latest,\
 BRAND_SHEET_ID=BRAND_SHEET_ID:latest,\
 PEOPLE_SHEET_ID=PEOPLE_SHEET_ID:latest,\
+GOOGLE_IMPERSONATION_EMAIL=GOOGLE_IMPERSONATION_EMAIL:latest,\
+DRIVE_OPS_FOLDER_ID=DRIVE_OPS_FOLDER_ID:latest,\
 GOOGLE_SERVICE_ACCOUNT_JSON=GOOGLE_SERVICE_ACCOUNT_JSON:latest" \
   --project=$PROJECT_ID
 ```
