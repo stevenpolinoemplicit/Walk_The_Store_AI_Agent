@@ -16,6 +16,39 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 19 — GCP deployment live, DWD fixed, trailing newline secrets fixed, scheduler set up
+**Date:** 2026-04-17
+**Participants:** Claude Code
+
+#### Decisions Made
+- **DWD `invalid_request` root cause: wrong client ID in Google Admin** — the service account client ID registered in Google Admin didn't match `polino-agentic-solutions-servi`; user added the correct SA to Google Admin with all scopes; also added `walk-the-store-sa` as a second entry for future consolidation
+- **Trailing `\r\n` in Secret Manager secrets** — all secrets originally stored via PowerShell `echo` which appends `\r\n`; caused Postgres hostname DNS failure, gspread 404 on sheet IDs; fixed by re-storing secrets using `printf` (no newline) and adding `.strip()` to all string values in `settings.py` as defensive guard
+- **Sheets 404 was not a permissions issue** — `steven.polino@emplicit.co` owns the sheets; the 404 was caused entirely by the `\r\n` in the `BRAND_SHEET_ID` and `PEOPLE_SHEET_ID` secrets
+- **Postgres unreachable → false healthy report** — when Postgres is down, all brands return `unknown` severity which is bucketed with `healthy`; ops summary showed 0 critical/warning; added `postgres.check_connection()` call at orchestrator startup to abort and DM error to always-notify users instead
+- **Cloud Scheduler uses `America/Los_Angeles` timezone** — `0 7 * * *` with LA timezone handles daylight saving automatically; next run: 2026-04-18 07:00 LA time
+- **Scheduler test confirmed working** — `gcloud scheduler jobs run` triggered a real execution via HTTP/OAuth; execution was cancelled immediately after confirming it fired (user did not want a 4th report sent that day)
+- **Never trigger live runs without permission** — each execution DMs the entire ops team; requires explicit user approval before any `gcloud run jobs execute` or `gcloud scheduler jobs run`
+- **`SLACK_OPS_CHANNEL` left as-is** — user confirmed `C0AS4D84NET` (walk-the-store channel) is the only channel and it's already working; no change needed
+- **Verified real data after Postgres fix** — execution `walk-the-store-68pcs` showed 2 critical brands in logs; confirmed account 2625280 US has LSR 5.1% (critical) from pgAdmin query
+
+#### Files Updated
+- `config/settings.py` — `.strip()` added to ALL string secret reads; `EMPLICIT_PG_PORT` strip added; `WEEKEND_ONCALL_IDS` already present
+- `tools/postgres.py` — added `check_connection()` function; returns bool; used by orchestrator at startup
+- `controllers/orchestrator.py` — added Postgres connectivity check at top of `run_agent()`; aborts and DMs error to `NOTIFY_ALWAYS_IDS` if unreachable
+- `README.md` — updated status to live/deployed; added Emily to always-notify; added weekend on-call docs; updated scheduler time; added Secret Manager newline warning
+- `info/SETUP.md` — Cloud Scheduler step marked complete
+
+#### GCP Resources Created
+- Cloud Scheduler job `walk-the-store-daily` — `0 7 * * *` America/Los_Angeles, HTTP target → Cloud Run Jobs API, OAuth via `walk-the-store-sa`
+- Secret Manager version 2 for `GOOGLE_IMPERSONATION_EMAIL`, `BRAND_SHEET_ID`, `PEOPLE_SHEET_ID` — all re-stored without trailing newline
+
+#### Still To Do
+- [ ] Teamwork tasks — all task lists returning unavailable (separate investigation needed)
+- [ ] `DRIVE_OPS_FOLDER_ID` — ops summary doc not moving to correct folder (angle brackets in secret or wrong folder ID)
+- [ ] Verify pgAdmin `walk_the_store.daily_health_reports` has correct rows after clean run
+
+---
+
 ### Session 18 — GCP deployment unblocked, per-country account IDs, weekend on-call routing
 **Date:** 2026-04-17
 **Participants:** Claude Code
