@@ -43,9 +43,11 @@ _TW_COLUMNS = [
 _PEOPLE_SHEET_GID = 2056938022
 
 
-# #note: Authenticates with Google using the shared credential helper — works locally (file path) and on Cloud Run (JSON string)
+# #note: Authenticates with Google using the shared credential helper — works locally (file path) and on Cloud Run (JSON string).
+# DWD impersonation is required because the sheets live in the emplicit.co Workspace domain,
+# which blocks direct service account access from external GCP projects.
 def _get_gspread_client() -> gspread.Client:
-    creds = get_service_account_credentials(_SCOPES)
+    creds = get_service_account_credentials(_SCOPES, impersonate=True)
     return gspread.Client(auth=creds)
 
 

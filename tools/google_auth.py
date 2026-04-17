@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 # #note: Returns Google service account credentials scoped to the requested APIs.
 # Locally, GOOGLE_SERVICE_ACCOUNT_JSON is a file path — uses from_service_account_file().
 # On Cloud Run, the env var contains the raw JSON string from Secret Manager — uses from_service_account_info().
-# If GOOGLE_IMPERSONATION_EMAIL is set, activates Domain-Wide Delegation so the service account
-# impersonates that Workspace user — necessary for Google Workspace-restricted APIs (Docs, Drive).
-def get_service_account_credentials(scopes: List[str]) -> Credentials:
+# impersonate=True activates Domain-Wide Delegation (DWD) for Workspace-restricted APIs (Drive, Docs).
+# impersonate=False skips DWD — used for Google Sheets, which are directly shared with the service account.
+def get_service_account_credentials(scopes: List[str], impersonate: bool = True) -> Credentials:
     value = settings.GOOGLE_SERVICE_ACCOUNT_JSON
     if os.path.exists(value):
         logger.debug("Google auth: loading credentials from file path")
@@ -30,7 +30,7 @@ def get_service_account_credentials(scopes: List[str]) -> Credentials:
         logger.debug("Google auth: loading credentials from JSON string (Cloud Run)")
         info = json.loads(value)
         creds = Credentials.from_service_account_info(info, scopes=scopes)
-    if settings.GOOGLE_IMPERSONATION_EMAIL:
+    if impersonate and settings.GOOGLE_IMPERSONATION_EMAIL:
         logger.debug(f"Google auth: activating DWD as {settings.GOOGLE_IMPERSONATION_EMAIL}")
         creds = creds.with_subject(settings.GOOGLE_IMPERSONATION_EMAIL)
     return creds

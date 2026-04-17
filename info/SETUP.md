@@ -1,5 +1,5 @@
 # SETUP.md — Walk the Store: Setup Checklist
-> Last updated: April 14, 2026 — Session 8
+> Last updated: April 17, 2026 — Session 18
 > Code is built. This is the checklist to go from built → running.
 > Work top to bottom. Blocked items are marked — get answers before proceeding past them.
 
@@ -22,7 +22,10 @@
 ### Google Sheets (Brand Config — replaces walk_the_store Postgres schema)
 - [x] Brand Code Mapping Sheet shared with service account ✅
 - [x] People Lookup Sheet shared with service account ✅
-- [ ] Column `iw_account_id` (col S) populated for all active brands in Brand Code Mapping Sheet
+- [x] Per-country account ID columns populated: `iw_account_id_us` (col S), `iw_account_id_ca` (col T), `iw_account_id_mx` (col U) ✅
+  - CA: Trtl (2625620), Woof Pet (3594300)
+  - MX: one entry populated
+  - All other brands: US only
 
 ---
 
@@ -78,8 +81,11 @@ Before touching GCP, confirm the agent runs locally end-to-end.
     cloudscheduler.googleapis.com \
     secretmanager.googleapis.com
   ```
-- [ ] Create Artifact Registry repo (see `docs/CLOUD_RUN_DEPLOY.md` Step 2)
-- [ ] Store all `.env` values as Secret Manager secrets (see `docs/CLOUD_RUN_DEPLOY.md` Step 4)
+- [x] Create Artifact Registry repo `walk-the-store-repo` in `us-east1` ✅
+- [x] Store all `.env` values as Secret Manager secrets ✅
+- [x] Service account `walk-the-store-sa@polino-agentic-solutions.iam.gserviceaccount.com` created ✅
+- [x] Service account granted `roles/secretmanager.secretAccessor` ✅
+- [x] `steven.polino@emplicit.co` granted `roles/iam.serviceAccountUser` on SA ✅
 
 ---
 
@@ -87,11 +93,11 @@ Before touching GCP, confirm the agent runs locally end-to-end.
 
 Follow `docs/CLOUD_RUN_DEPLOY.md` steps 3–6:
 
-- [ ] Build and push Docker image: `gcloud builds submit --tag $IMAGE .`
-- [ ] Create Cloud Run Job: `gcloud run jobs create ...`
-- [ ] Set Cloud Scheduler trigger (7:00 AM PDT — `0 14 * * *` UTC)
-- [ ] Test manual execution: `gcloud run jobs execute walk-the-store ...`
-- [ ] Verify logs show clean run end-to-end
+- [x] Build and push Docker image ✅ (build `c295e106` — SUCCESS)
+- [x] Cloud Run Job `walk-the-store` created and updated with correct image + secrets ✅
+- [~] Rebuild image required — code changes made after last build (per-country account_ids, weekend on-call)
+- [x] Set Cloud Scheduler trigger — `0 7 * * *` America/Los_Angeles (handles DST automatically)
+- [ ] Test manual execution and verify logs show clean run end-to-end
 
 ---
 

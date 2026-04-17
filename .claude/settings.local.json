@@ -28,7 +28,9 @@
       "Bash(jq --version)",
       "Skill(memory-update)",
       "WebFetch(domain:sellercentral.amazon.com)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(gcloud secrets versions access:*)",
+      "Bash(gcloud services list:*)"
     ]
   }
 }

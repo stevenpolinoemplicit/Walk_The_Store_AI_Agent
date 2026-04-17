@@ -21,6 +21,26 @@ from models.report import HealthReport
 logger = logging.getLogger(__name__)
 
 
+# #note: Quick connectivity check — opens and immediately closes a connection.
+# Returns True if Postgres is reachable, False otherwise. Used by orchestrator at startup
+# to abort the run and send an error DM rather than producing a false all-healthy report.
+def check_connection() -> bool:
+    try:
+        conn = psycopg2.connect(
+            host=settings.EMPLICIT_PG_HOST,
+            port=settings.EMPLICIT_PG_PORT,
+            dbname=settings.EMPLICIT_PG_DB,
+            user=settings.EMPLICIT_PG_USER,
+            password=settings.EMPLICIT_PG_PASSWORD,
+            connect_timeout=10,
+        )
+        conn.close()
+        return True
+    except psycopg2.OperationalError as e:
+        logger.error(f"Postgres connectivity check failed: {e}")
+        return False
+
+
 # #note: Opens and returns a psycopg2 connection using credentials from config/settings.py
 def get_connection() -> psycopg2.extensions.connection:
     try:

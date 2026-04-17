@@ -64,12 +64,29 @@ def _route_alerts(
 def run_agent() -> None:
     logger.info("Orchestrator starting")
 
+    # --- Postgres connectivity check — abort and alert if unreachable ---
+    # #note: If Postgres is down, all metrics return None and the report shows every brand as healthy.
+    # Check connectivity first so we can send an error DM instead of a false report.
+    if not postgres.check_connection():
+        error_msg = (
+            ":rotating_light: *Walk the Store — Postgres Unreachable*\n"
+            "The agent could not connect to the Emplicit database. "
+            "No health reports were generated. Please check Postgres connectivity."
+        )
+        for user_id in settings.NOTIFY_ALWAYS_IDS:
+            try:
+                slack_alerts.send_dm(user_id, error_msg)
+                logger.error(f"Postgres unreachable — error DM sent to {user_id}")
+            except Exception as e:
+                logger.error(f"Failed to DM Postgres error to {user_id}: {e}")
+        return
+
     # --- Fetch active accounts from Google Sheets ---
     try:
         accounts: List[AccountConfig] = sheets_reader.get_active_accounts()
         logger.info(f"Found {len(accounts)} active accounts")
     except Exception as e:
-        logger.error(f"Failed to fetch accounts — aborting run: {e}")
+        logger.error(f"Failed to fetch accounts — aborting run: {e}", exc_info=True)
         return
 
     completed_reports: List[HealthReport] = []
