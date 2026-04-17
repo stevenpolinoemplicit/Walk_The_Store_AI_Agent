@@ -1,8 +1,8 @@
 # Walk the Store AI Agent (claude_code)
 
-Autonomous daily agent that reads Amazon account health data for all Emplicit brands, classifies severity, generates Google Doc reports saved to Drive, and delivers a cross-brand ops summary to Slack. Runs every day at 7:00 AM PDT via Cloud Scheduler + Cloud Run Jobs.
+Autonomous daily agent that reads Amazon account health data for all Emplicit brands, classifies severity, generates Google Doc reports saved to Drive, and delivers a cross-brand ops summary to Slack. Runs every day at 7:00 AM Los Angeles time via Cloud Scheduler + Cloud Run Jobs on GCP.
 
-**Owner:** Steven Polino | **Approvers:** Adam Weiler, Emily Lindahl
+**Owner:** Steven Polino | **Status:** Live — deployed to GCP, running daily
 
 ---
 
@@ -15,7 +15,7 @@ Autonomous daily agent that reads Amazon account health data for all Emplicit br
 5. **Generates** a Google Doc report per brand, saved to Drive, shared with the emplicit.co domain
 6. **Posts** a cross-brand daily ops summary to the Slack ops channel
 7. **DMs** each ops manager a filtered summary of only their brands
-8. **DMs** Steven + Adam the full cross-brand summary with a Drive link
+8. **DMs** Steven, Adam, and Emily the full cross-brand summary with a Drive link
 9. **Saves** all report data to the `walk_the_store.daily_health_reports` Postgres table
 
 ---
@@ -40,8 +40,10 @@ Cloud Run Job → python main.py
         └── After all brands:
             ├── Post ops summary → Slack ops channel
             ├── Create ops summary Google Doc → Drive
-            ├── DM full summary → Steven + Adam
-            └── DM filtered summary → each ops manager (their brands only)
+            ├── DM full summary → Steven + Adam + Emily (always-notify)
+            ├── DM filtered summary → each ops manager (their brands only)
+            └── On weekends: DM on-call team instead of ops managers
+                (Axel, Kay, Milagros, Albenis)
 ```
 
 **Metrics checked per brand:**
@@ -129,7 +131,7 @@ cp .env.example .env
 | `SLACK_OPS_CHANNEL` | Slack channel ID for daily ops summary |
 | `TEAMWORK_DOMAIN` | Teamwork subdomain (e.g. `emplicit` for `emplicit.teamwork.com`) |
 | `TEAMWORK_API_TOKEN` | Teamwork API token (Collaborator account) |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Service account key — paste the full JSON as a single line |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Service account key — full JSON as a single line (Cloud Run reads from Secret Manager) |
 | `GOOGLE_IMPERSONATION_EMAIL` | Workspace user email for DWD impersonation (required for emplicit.co) |
 | `BRAND_SHEET_ID` | Google Sheet ID for Brand Code Mapping Sheet |
 | `PEOPLE_SHEET_ID` | Google Sheet ID for People Lookup Sheet |
@@ -163,7 +165,7 @@ Check logs for:
 
 ## Deployment
 
-Deployed as a **Cloud Run Job** triggered by **Cloud Scheduler** at 14:00 UTC (7:00 AM PDT).
+Deployed as a **Cloud Run Job** triggered by **Cloud Scheduler** at 7:00 AM Los Angeles time (`0 7 * * *` — handles daylight saving automatically).
 
 Follow `docs/CLOUD_RUN_DEPLOY.md` for the full step-by-step guide covering:
 - GCP project setup and IAM
@@ -181,16 +183,20 @@ Follow `docs/CLOUD_RUN_DEPLOY.md` for the full step-by-step guide covering:
 | Brand Code Mapping Sheet | Active brands, seller IDs, Teamwork task list IDs, iw_account_id, Drive folder ID |
 | People Lookup Sheet | Slack user IDs, ops manager brand assignments (`ops_brands` column I) |
 
-The service account email must be shared as **Editor** on the Brand Code Mapping Sheet and as **Viewer** on any Drive folders where reports are saved.
+The service account email must be shared as **Viewer** on both Google Sheets, and the impersonated Workspace user must have **Editor** access to the Drive folders where reports are saved.
+
+> **Note:** All secrets stored in Secret Manager must be stored without trailing newlines. Use `printf 'value' | gcloud secrets versions add SECRET_NAME --data-file=-` — never `echo`.
 
 ---
 
 ## Slack Routing
 
 - **Ops channel** — full cross-brand daily summary (all brands, all severities)
-- **Steven + Adam DM** — full summary + Drive link to ops summary doc
-- **Each ops manager DM** — filtered summary showing only their brands
+- **Steven + Adam + Emily DM** — full summary + Drive link to ops summary doc (every day)
+- **Each ops manager DM** — filtered summary showing only their brands (weekdays only)
+- **Weekend on-call DM** — Axel, Kay, Milagros, Albenis receive the summary on Sat/Sun instead of ops managers
 - **Individual brand alerts** — disabled (summary-only design)
+- **Postgres unreachable** — error DM sent to Steven + Adam + Emily instead of a false report
 
 ---
 
