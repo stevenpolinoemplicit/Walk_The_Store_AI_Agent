@@ -39,3 +39,6 @@ Thumbs.db
 claude_resume
 claude_session_log
 NEWPLAN
+
+# Claude Code local settings — machine-specific overrides, never commit
+.claude/settings.local.json
