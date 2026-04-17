@@ -18,7 +18,7 @@ def get_completed_tasks(project_id: str) -> List[dict]:
     try:
         response = httpx.get(
             url,
-            auth=(settings.TEAMWORK_API_TOKEN, ""),
+            auth=(settings.TEAMWORK_API_TOKEN, "x"),
             params={"status": "completed", "includeCompletedTasks": "true"},
             timeout=30,
         )
@@ -38,7 +38,7 @@ def get_completed_tasks(project_id: str) -> List[dict]:
         ]
     except httpx.HTTPStatusError as e:
         logger.error(
-            f"Teamwork API error for project {project_id}: {e.response.status_code}"
+            f"Teamwork API error for project {project_id}: {e.response.status_code} — {e.response.text[:500]}"
         )
         raise
     except httpx.HTTPError as e:
@@ -52,7 +52,7 @@ def get_open_tasks_by_list(task_list_id: str) -> List[dict]:
     try:
         response = httpx.get(
             url,
-            auth=(settings.TEAMWORK_API_TOKEN, ""),
+            auth=(settings.TEAMWORK_API_TOKEN, "x"),
             timeout=30,
             # No status filter — Teamwork default returns incomplete tasks only
         )
@@ -71,7 +71,7 @@ def get_open_tasks_by_list(task_list_id: str) -> List[dict]:
         ]
     except httpx.HTTPStatusError as e:
         logger.error(
-            f"Teamwork API error fetching open tasks for list {task_list_id}: {e.response.status_code}"
+            f"Teamwork API error fetching open tasks for list {task_list_id}: {e.response.status_code} — {e.response.text[:500]}"
         )
         raise
     except httpx.HTTPError as e:
@@ -85,7 +85,7 @@ def get_completed_tasks_by_list(task_list_id: str) -> List[dict]:
     try:
         response = httpx.get(
             url,
-            auth=(settings.TEAMWORK_API_TOKEN, ""),
+            auth=(settings.TEAMWORK_API_TOKEN, "x"),
             params={"status": "completed", "includeCompletedTasks": "true"},
             timeout=30,
         )
@@ -104,7 +104,7 @@ def get_completed_tasks_by_list(task_list_id: str) -> List[dict]:
         ]
     except httpx.HTTPStatusError as e:
         logger.error(
-            f"Teamwork API error for task list {task_list_id}: {e.response.status_code}"
+            f"Teamwork API error for task list {task_list_id}: {e.response.status_code} — {e.response.text[:500]}"
         )
         raise
     except httpx.HTTPError as e:
