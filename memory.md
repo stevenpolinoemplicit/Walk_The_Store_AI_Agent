@@ -16,6 +16,40 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 18 — GCP deployment unblocked, per-country account IDs, weekend on-call routing
+**Date:** 2026-04-17
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Artifact Registry permission root cause: wrong service account** — newer GCP projects use Compute Engine default SA (`140357370341-compute@developer.gserviceaccount.com`) as Cloud Build executor, not the legacy `@cloudbuild` SA; all prior grants were to the wrong identity; fixed by granting `roles/artifactregistry.writer` and `roles/storage.admin` to the Compute Engine default SA
+- **Cloud Run job created via `update` not `create`** — job already existed from a prior failed attempt; used `gcloud run jobs update` instead
+- **walk-the-store-sa service account created** — did not exist; created fresh; granted `roles/secretmanager.secretAccessor` at project level; granted `roles/iam.serviceAccountUser` to `steven.polino@emplicit.co`
+- **Per-country Intentwise account IDs moved to sheet** — Brand Code Mapping Sheet now has 3 account ID columns: S=`iw_account_id_us`, T=`iw_account_id_ca`, U=`iw_account_id_mx`; FBM moved to col V, FBA to col W; only numeric values used — blanks and "no account id" text skip silently
+- **AccountConfig.account_id replaced by account_ids dict** — `account_id: Optional[int]` removed; replaced with `account_ids: dict[str, int]` keyed by country_code (e.g. `{"US": 123, "CA": 456}`); brands with no valid numeric IDs are skipped entirely
+- **Postgres queries now per-country** — `get_account_health_metrics(account_id, country_code, fbm, fba)` filters by both account_id AND country_code; returns flat dict for one country; report_builder iterates `account.account_ids.items()` and calls once per country
+- **ODR table name confirmed truncated** — PostgreSQL 63-char limit truncates `sellercentral_sellerperformance_customerserviceperformance_report` to `sellercentral_sellerperformance_customerserviceperformance_repo`; fixed in postgres.py
+- **accounts_by_code lookup strips country suffix** — `report.brand_code` is `TRT_CA` but AccountConfig is keyed by `TRT` (3-letter codes); `rsplit("_", 1)[0]` strips suffix for lookup only; display names still include country (e.g. "Trtl CA")
+- **Weekend on-call routing added** — Saturday + Sunday: ops manager DMs replaced by DMs to Axel (U0339BL8PSN), Kay (U01J7UBBX3K), Milagros (U02GXHL9Q9M), Albenis (U01JLUZ534Y); weekdays unchanged; Steven + Adam + Emily always receive full summary regardless of day
+- **CA/MX data confirmed** — only Trtl (2625620) and Woof Pet (3594300) have CA accounts; TrtlTravel (2625700) is AU (not supported); no MX accounts exist in DB yet; iw_account_id_ca populated for Trtl + Woof Pet; iw_account_id_mx has one entry
+
+#### Files Updated
+- `models/account.py` — `account_id: Optional[int]` → `account_ids: dict[str, int] = {}`; FBM/FBA column comments updated to V/W
+- `tools/sheets_reader.py` — reads `iw_account_id_us/ca/mx`; builds per-country dict; skips non-numeric; FBM/FBA header names unchanged (gspread is header-based)
+- `tools/postgres.py` — `get_account_health_metrics()` now takes `country_code` param; all 4 queries filter by `account_id AND country_code`; returns flat dict; ODR table name fixed to 63-char truncated form
+- `controllers/report_builder.py` — iterates `account.account_ids.items()`; calls postgres per country
+- `controllers/orchestrator.py` — `accounts_by_code` lookup strips `_CC` suffix; weekend on-call routing added with day-of-week check
+- `config/settings.py` — added `WEEKEND_ONCALL_IDS` list with Axel, Kay, Milagros, Albenis Slack IDs
+
+#### Still To Do
+- [ ] Rebuild Docker image + redeploy Cloud Run job (image predates per-country account_ids changes)
+- [ ] Confirm manual test run logs — check for errors after execution `walk-the-store-bfcxk`
+- [ ] Set up Cloud Scheduler (7:00 AM PDT / 14:00 UTC daily)
+- [ ] Update SETUP.md to reflect completed GCP steps
+- [ ] Ops team to investigate 4 food/product safety violations on account 3619670 (AllGood / LVL10)
+- [ ] Verify mfn_rate data for remaining FBM brands in pgAdmin
+
+---
+
 ### Session 17 — FBM/FBA suppression, ODR fix, UNKNOWN severity fix, country investigation
 **Date:** 2026-04-16
 **Participants:** Claude Code
