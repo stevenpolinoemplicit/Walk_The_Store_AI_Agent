@@ -1,4 +1,4 @@
-Run the pre-deployment checklist from CLAUDE.md Section 11 against the current codebase.
+Run the pre-deployment checklist from CLAUDE.md Section 12 against the current codebase.
 
 Check each item and report pass/fail:
 
@@ -27,7 +27,7 @@ Check each item and report pass/fail:
 - [ ] Dockerfile exists and builds cleanly
 - [ ] All `.env` keys have been added to GCP Secret Manager
 - [ ] Cloud Run service is configured with the service account
-- [ ] Cloud Scheduler is set to 6:30 AM ET daily
+- [ ] Cloud Scheduler is set to 7:00 AM Los Angeles time daily
 
 Output each item as ✅ Pass, ❌ Fail, or ⚠️ Could not verify (with reason).
 After the checklist, output a summary: **Ready to deploy: Yes / No** with a list of any failing items.
