@@ -47,6 +47,48 @@ _ACCOUNT_CHECKS = {"account_health_rating", "account_status", "food_safety", "ip
 _CUSTOMER_CHECKS = {"order_defect_rate"}
 
 
+# #note: Finds an existing date-named subfolder inside parent_folder_id, or creates one if absent.
+# Folder name format is MMDDYYYY. Returns the subfolder's Drive folder ID.
+def _get_or_create_date_folder(drive_service, parent_folder_id: str, date_str: str) -> str:
+    query = (
+        f"'{parent_folder_id}' in parents "
+        f"and name = '{date_str}' "
+        f"and mimeType = 'application/vnd.google-apps.folder' "
+        f"and trashed = false"
+    )
+    try:
+        results = drive_service.files().list(
+            q=query,
+            fields="files(id, name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+        ).execute()
+        existing = results.get("files", [])
+        if existing:
+            logger.info(f"Date folder '{date_str}' already exists in {parent_folder_id}: {existing[0]['id']}")
+            return existing[0]["id"]
+    except Exception as e:
+        logger.warning(f"Could not search for date folder '{date_str}': {e}")
+
+    try:
+        folder_meta = {
+            "name": date_str,
+            "mimeType": "application/vnd.google-apps.folder",
+            "parents": [parent_folder_id],
+        }
+        folder = drive_service.files().create(
+            body=folder_meta,
+            fields="id",
+            supportsAllDrives=True,
+        ).execute()
+        folder_id: str = folder["id"]
+        logger.info(f"Date folder '{date_str}' created in {parent_folder_id}: {folder_id}")
+        return folder_id
+    except Exception as e:
+        logger.error(f"Could not create date folder '{date_str}' in {parent_folder_id}: {e}")
+        raise
+
+
 # #note: Loads service account credentials via shared helper — works locally (file path) and on Cloud Run (JSON string)
 def _get_credentials() -> Credentials:
     return get_service_account_credentials(_SCOPES)
@@ -192,7 +234,8 @@ def create_report(report: HealthReport, account: AccountConfig) -> str:
     docs_service = build("docs", "v1", credentials=creds)
     drive_service = build("drive", "v3", credentials=creds)
 
-    doc_title = f"{report.brand_name} — Amazon Health Report — {report.report_date}"
+    date_str = report.report_date.strftime("%B %d %Y")
+    doc_title = f"{report.brand_name} - {date_str} - Amazon Health Report"
     doc_body = _build_doc_text(report, account)
 
     # Step 1: Create the document shell
@@ -227,11 +270,14 @@ def create_report(report: HealthReport, account: AccountConfig) -> str:
         logger.error(f"[{report.brand_name}] Failed to write Doc content: {e}")
         raise
 
-    # Step 3: Move doc to the brand's Drive folder (if drive_folder_id is configured)
+    # Step 3: Move doc into a MMDDYYYY date subfolder inside the brand's Drive folder.
     # supportsAllDrives=True is required for Shared Drive (Google Workspace Shared Drive) folders.
     # Without it the Drive API ignores Shared Drive content and returns 404 on the folder.
     if account.drive_folder_id:
         try:
+            target_folder_id = _get_or_create_date_folder(
+                drive_service, account.drive_folder_id, date_str
+            )
             file_meta = drive_service.files().get(
                 fileId=doc_id,
                 fields="parents",
@@ -240,13 +286,14 @@ def create_report(report: HealthReport, account: AccountConfig) -> str:
             current_parents = ",".join(file_meta.get("parents", []))
             drive_service.files().update(
                 fileId=doc_id,
-                addParents=account.drive_folder_id,
+                addParents=target_folder_id,
                 removeParents=current_parents,
                 fields="id, parents",
                 supportsAllDrives=True,
             ).execute()
             logger.info(
-                f"[{report.brand_name}] Doc moved to Drive folder {account.drive_folder_id}"
+                f"[{report.brand_name}] Doc moved to date folder {target_folder_id} "
+                f"({date_str}) inside {account.drive_folder_id}"
             )
         except Exception as e:
             logger.warning(
@@ -290,7 +337,8 @@ def create_ops_summary_doc(summary_text: str, report_date: date) -> str:
     docs_service = build("docs", "v1", credentials=creds)
     drive_service = build("drive", "v3", credentials=creds)
 
-    doc_title = f"Walk the Store — Daily Ops Summary — {report_date}"
+    date_str = report_date.strftime("%B %d %Y")
+    doc_title = f"Walk the Store - {date_str} - Daily Ops Summary"
 
     try:
         doc = docs_service.documents().create(body={"title": doc_title}).execute()
@@ -320,8 +368,11 @@ def create_ops_summary_doc(summary_text: str, report_date: date) -> str:
         logger.error(f"Failed to write ops summary doc content: {e}")
         raise
 
-    # Move to ops summary Drive folder — supportsAllDrives=True required for Shared Drive folders
+    # Move to a MMDDYYYY date subfolder inside the ops Drive folder — supportsAllDrives=True required for Shared Drive folders
     try:
+        ops_date_folder_id = _get_or_create_date_folder(
+            drive_service, settings.DRIVE_OPS_FOLDER_ID, date_str
+        )
         file_meta = drive_service.files().get(
             fileId=doc_id,
             fields="parents",
@@ -330,12 +381,15 @@ def create_ops_summary_doc(summary_text: str, report_date: date) -> str:
         current_parents = ",".join(file_meta.get("parents", []))
         drive_service.files().update(
             fileId=doc_id,
-            addParents=settings.DRIVE_OPS_FOLDER_ID,
+            addParents=ops_date_folder_id,
             removeParents=current_parents,
             fields="id, parents",
             supportsAllDrives=True,
         ).execute()
-        logger.info(f"Ops summary doc moved to Drive folder {settings.DRIVE_OPS_FOLDER_ID}")
+        logger.info(
+            f"Ops summary doc moved to date folder {ops_date_folder_id} "
+            f"({date_str}) inside {settings.DRIVE_OPS_FOLDER_ID}"
+        )
     except Exception as e:
         logger.warning(f"Could not move ops summary doc to Drive folder — accessible from root: {e}")
 
