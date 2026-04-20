@@ -16,6 +16,37 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 22 — Case log visibility planning (caselog_agent_planning)
+**Date:** 2026-04-20
+**Participants:** Claude Code
+
+#### Decisions Made
+- **SP-API has no case log endpoint** — confirmed via feature-integrator agent research; no `getCaseLog`, `listCases`, or equivalent exists in SP-API as of April 2026
+- **Email ruled out entirely** — case log emails go to client inboxes (not Emplicit); no single shared inbox; email is not a viable integration path
+- **Intentwise already has the data** — two tables in `amazon_source_data` cover the same events as case log emails:
+  - `sellercentral_suppressedlistings_report` — suppressed listings with human-readable remediation text (`account_id`, `asin`, `sku`, `product_name`, `status`, `reason`, `issue_description`, `status_change_date`)
+  - `sellercentral_sellerperformance_policycompliance_report` — already queried but only 3 of ~20+ columns used; has 8 policy categories including `product_condition_cust_complaints_*` (maps directly to "not as described" cases)
+- **Build as Walk the Store extension** — same orchestrator, same 7am run; not a separate service
+- **`account_id` in suppression table = same Intentwise IDs in `AccountConfig.account_ids`** — brand matching solved without extra lookup
+- **State table approach** — new `agent_state.suppression_alerts` Postgres table for deduplication; Steven creates manually (Claude never writes DDL)
+- **3-phase plan approved**: Phase 1 = suppression watcher MVP, Phase 2 = expanded policy compliance (all 8 categories), Phase 3 = Claude triage/appeal draft generation
+- **Email content analysis** — real case log email (Nolan Interior, ASIN B0DT4YLVLJ, case 19898704701) contains ASIN + SKU but NOT MWS Seller ID; brand matching must use ASIN-to-account_id lookup, not seller ID — this was invalidated as concern because Intentwise suppression table already has `account_id`
+
+#### Files Created
+- `info/case-log_plan.md` — full 3-phase implementation plan: suppression watcher, expanded compliance, Claude triage; includes file change table, data flow diagram, pre-build verification queries, and agent_state schema DDL
+
+#### Files Updated
+- None — planning session only; no code written
+
+#### Still To Do
+- [ ] Verify `country_code` column exists on `sellercentral_suppressedlistings_report` (run column query in pgAdmin)
+- [ ] Verify exact column names on `sellercentral_sellerperformance_policycompliance_report` (all 20+ columns)
+- [ ] Confirm deduplication key: `asin + status_change_date` — verify status_change_date changes on re-suppression
+- [ ] Steven runs `agent_state_schema.sql` DDL in pgAdmin before Phase 1 build
+- [ ] Build Phase 1 (suppression watcher) in next session — start with `tools/postgres.py` new functions
+
+---
+
 ### Session 21 — Drive folder structure, report renaming, advisor strategy (Sonnet + Opus)
 **Date:** 2026-04-20
 **Participants:** Claude Code
