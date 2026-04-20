@@ -15,6 +15,11 @@ logger = logging.getLogger(__name__)
 # .strip() on all string secrets — PowerShell echo adds \r\n when secrets were originally stored via CLI
 ANTHROPIC_API_KEY: str = os.environ["ANTHROPIC_API_KEY"].strip()
 
+# #note: Executor model (Sonnet) drives the full report narrative; advisor model (Opus) is consulted
+# only when Sonnet escalates — used by the advisor strategy in tools/report_generator.py
+ANTHROPIC_EXECUTOR_MODEL: str = "claude-sonnet-4-6"
+ANTHROPIC_ADVISOR_MODEL: str = "claude-opus-4-6"
+
 # --- Emplicit Postgres ---
 # #note: Connection parameters for the Emplicit PostgreSQL database (used by psycopg2 and asyncpg)
 EMPLICIT_PG_HOST: str = os.environ["EMPLICIT_PG_HOST"].strip()

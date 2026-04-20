@@ -8,6 +8,7 @@ import logging
 from datetime import date, datetime
 from typing import Optional
 
+import anthropic
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -119,28 +120,110 @@ def _check_severity(report: HealthReport, check_name: str) -> str:
     return UNKNOWN
 
 
+# #note: Calls Sonnet (executor) with Opus as advisor to write the Executive Summary and Key Findings
+# narrative prose. Sonnet handles routine reports; Opus is consulted (up to 3 times) when Sonnet
+# escalates on complex or multi-issue situations. Returns None on any failure so the caller can fall
+# back to the deterministic template — the report always ships even if the LLM call fails.
+def _generate_narrative(report: HealthReport, account: AccountConfig) -> Optional[str]:
+    _SYSTEM_PROMPT = (
+        "You are an Amazon account health analyst writing internal reports for an e-commerce agency. "
+        "You will be given structured metric data and severity findings for a client brand. "
+        "Write two sections only:\n\n"
+        "1. Executive Summary — 2-4 sentences. State the overall status, identify the most urgent issue, "
+        "and explain what it means for the account in plain language. Do not list every finding — focus on the story.\n\n"
+        "2. Key Findings — 1-2 sentences per critical or warning finding. Explain what each metric means, "
+        "why it matters, and what the likely next step is. Do not invent numbers — use only the values provided.\n\n"
+        "Be direct and concise. Write for an ops manager who reads dozens of these. "
+        "Use the severity emoji (🔴 🟡 🟢) at the start of each Key Finding line."
+    )
+
+    alert_findings = [f for f in report.findings if f.severity in (CRITICAL, WARNING)]
+    findings_text = "\n".join(
+        f"  {f.severity.upper()} — {f.check}: {f.message}" for f in alert_findings
+    ) or "  No critical or warning findings."
+
+    user_message = (
+        f"Brand: {report.brand_name}\n"
+        f"Report Date: {report.report_date}\n"
+        f"Overall Status: {report.highest_severity.upper()}\n\n"
+        f"Metric Values:\n"
+        f"  Late Shipment Rate: {_fmt_pct(report.late_shipment_rate)}\n"
+        f"  Valid Tracking Rate: {_fmt_pct(report.valid_tracking_rate)}\n"
+        f"  Pre-fulfillment Cancel Rate: {_fmt_pct(report.pre_cancel_rate)}\n"
+        f"  Order Defect Rate (ODR): {_fmt_pct(report.order_defect_rate)}\n"
+        f"  Account Health Rating: {_fmt_val(report.account_health_rating)}\n"
+        f"  Account Status: {_fmt_val(report.account_status)}\n"
+        f"  Food/Product Safety Count: {_fmt_val(report.food_safety_count)}\n"
+        f"  IP Complaint Count: {_fmt_val(report.ip_complaint_count)}\n\n"
+        f"Classified Findings (critical and warning only):\n{findings_text}\n"
+    )
+
+    try:
+        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model=settings.ANTHROPIC_EXECUTOR_MODEL,
+            max_tokens=1024,
+            extra_headers={"anthropic-beta": "advisor-tool-2026-03-01"},
+            tools=[
+                {
+                    "type": "advisor_20260301",
+                    "name": "advisor",
+                    "model": settings.ANTHROPIC_ADVISOR_MODEL,
+                    "max_uses": 3,
+                }
+            ],
+            system=_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_message}],
+        )
+        # Extract the text content block from the response
+        narrative = "\n".join(
+            block.text for block in response.content if hasattr(block, "text")
+        ).strip()
+        logger.info(
+            f"[{report.brand_name}] Narrative generated via advisor strategy "
+            f"(executor_tokens={response.usage.input_tokens}, "
+            f"output_tokens={response.usage.output_tokens})"
+        )
+        return narrative if narrative else None
+    except Exception as e:
+        logger.warning(
+            f"[{report.brand_name}] _generate_narrative failed — falling back to template: {e}"
+        )
+        return None
+
+
 # #note: Builds the full plain-text body for the Google Doc, matching the example PDF layout exactly
 def _build_doc_text(report: HealthReport, account: AccountConfig) -> str:
     critical_count, warning_count = _count_severities(report)
     severity_label = _SEVERITY_LABEL.get(report.highest_severity, "⚪ UNKNOWN")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
 
+    # Attempt LLM-generated narrative (Sonnet executor + Opus advisor); fall back to template on failure
+    llm_narrative = _generate_narrative(report, account)
+
     lines: list[str] = [
         "EMPLICIT — Amazon Account Health Report",
         f"Account: {report.brand_name}          Report Date: {report.report_date}",
         "─" * 60,
         "",
-        "Executive Summary",
-        f"Overall Status: {severity_label}",
-        f"🔴 {critical_count} Critical Issues   🟡 {warning_count} Warning(s)",
-        "",
-        "Key Findings",
     ]
 
-    for finding in report.findings:
-        if finding.severity in (CRITICAL, WARNING):
-            emoji = _SEVERITY_EMOJI.get(finding.severity, "⚪")
-            lines.append(f"  - {emoji} {finding.message}")
+    if llm_narrative:
+        lines.append(llm_narrative)
+        lines.append("")
+    else:
+        lines += [
+            "Executive Summary",
+            f"Overall Status: {severity_label}",
+            f"🔴 {critical_count} Critical Issues   🟡 {warning_count} Warning(s)",
+            "",
+            "Key Findings",
+        ]
+        for finding in report.findings:
+            if finding.severity in (CRITICAL, WARNING):
+                emoji = _SEVERITY_EMOJI.get(finding.severity, "⚪")
+                lines.append(f"  - {emoji} {finding.message}")
+        lines.append("")
 
     lines += [
         "",
