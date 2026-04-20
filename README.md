@@ -12,7 +12,7 @@ Autonomous daily agent that reads Amazon account health data for all Emplicit br
 2. **Queries** Intentwise-synced Postgres tables for 8 Amazon health metrics per brand
 3. **Checks** Teamwork task lists for open and recently completed tasks per brand
 4. **Classifies** each brand as Critical, Warning, or Healthy using Amazon's official thresholds
-5. **Generates** a Google Doc report per brand, saved to Drive, shared with the emplicit.co domain
+5. **Generates** a Google Doc report per brand — written by Claude (Sonnet executor + Opus advisor) — saved to a dated subfolder (`April 20 2026`) inside the brand's Drive folder, shared with the emplicit.co domain
 6. **Posts** a cross-brand daily ops summary to the Slack ops channel
 7. **DMs** each ops manager a filtered summary of only their brands
 8. **DMs** Steven, Adam, and Emily the full cross-brand summary with a Drive link
@@ -34,7 +34,8 @@ Cloud Run Job → python main.py
         │
         ├── Per brand:
         │   ├── Classify severity (Critical / Warning / Healthy)
-        │   ├── Create Google Doc → save to Drive folder
+        │   ├── Generate report narrative via Claude (Sonnet + Opus advisor)
+        │   ├── Create Google Doc → save to dated subfolder in Drive
         │   └── Save report to Postgres (walk_the_store schema)
         │
         └── After all brands:
@@ -174,6 +175,24 @@ Follow `info/CLOUD_RUN_DEPLOY.md` for the full step-by-step guide covering:
 - Secret Manager configuration
 - Cloud Run Job creation
 - Cloud Scheduler configuration
+
+---
+
+## Report Output
+
+Each daily run produces:
+- **Per-brand Google Doc** — titled `{Brand Name} - Month DD YYYY - Amazon Health Report`, saved inside a `Month DD YYYY` dated subfolder within the brand's Drive folder
+- **Ops summary Google Doc** — titled `Walk the Store - Month DD YYYY - Daily Ops Summary`, saved inside a `Month DD YYYY` dated subfolder within the ops Drive folder
+
+The dated subfolder is created automatically on the first report of the day and reused for all subsequent reports in the same run.
+
+### Report Narrative (Advisor Strategy)
+
+Report narratives are written by Claude using the **advisor strategy**: Sonnet (`claude-sonnet-4-6`) drives the full run as the executor; Opus (`claude-opus-4-6`) is consulted as the advisor (up to 3 times per report) when Sonnet encounters complex or multi-issue situations. This produces near-Opus-quality analysis at near-Sonnet cost.
+
+- **LLM sections:** Executive Summary and Key Findings prose
+- **Deterministic sections:** Key Metrics table (exact values), Detailed Findings, Teamwork Activity, Footer
+- **Fallback:** if the API call fails for any reason, the templated version is used — the report always ships
 
 ---
 
