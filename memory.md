@@ -16,6 +16,28 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 21 — Drive folder structure, report renaming, advisor strategy (Sonnet + Opus)
+**Date:** 2026-04-20
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Date subfolder created per daily run** — each run now creates a `Month DD YYYY` subfolder (e.g. `April 20 2026`) inside the brand's Drive folder and the ops folder before depositing reports; if the folder already exists it is reused; prevents docs from piling up flat in the parent folder
+- **Report title format changed** — from `{brand} — Amazon Health Report — YYYY-MM-DD` to `{brand} - Month DD YYYY - Amazon Health Report`; ops summary follows same pattern: `Walk the Store - Month DD YYYY - Daily Ops Summary`; date is human-readable (month name, not numbers)
+- **Advisor strategy introduced** — Sonnet (`claude-sonnet-4-6`) is the executor; Opus (`claude-opus-4-6`) is the advisor (max 3 calls per report); the advisor tool is declared via `advisor_20260301` with beta header `anthropic-beta: advisor-tool-2026-03-01`; Sonnet writes the Executive Summary and Key Findings prose, escalating to Opus on complex multi-issue reports
+- **Hybrid LLM + deterministic design** — Key Metrics table, Detailed Findings, Teamwork Activity, and Footer remain fully templated; LLM only touches the narrative prose sections; if `_generate_narrative()` fails for any reason, `_build_doc_text()` silently falls back to the template — no crashes
+- **Two rebuilds and redeployments this session** — image rebuilt and Cloud Run Job updated after each change set
+
+#### Files Updated
+- `tools/report_generator.py` — `_get_or_create_date_folder()` helper added; `doc_title` format updated to `Month DD YYYY`; date subfolder routing added to both `create_report()` and `create_ops_summary_doc()`; `import anthropic` added; `_generate_narrative()` added using advisor strategy; `_build_doc_text()` updated to call `_generate_narrative()` with template fallback
+- `config/settings.py` — added `ANTHROPIC_EXECUTOR_MODEL = "claude-sonnet-4-6"` and `ANTHROPIC_ADVISOR_MODEL = "claude-opus-4-6"` constants
+
+#### Still To Do
+- [ ] Monitor next 7:00 AM run — check Cloud Run logs for `_generate_narrative` success/fallback messages
+- [ ] Open a generated Google Doc to confirm Executive Summary reads as prose, not template strings
+- [ ] Confirm Opus advisor tokens appear in usage logs on critical-severity brands
+
+---
+
 ### Session 20 — Teamwork auth fix, repo cleanup, docs moved to info/
 **Date:** 2026-04-17
 **Participants:** Claude Code
