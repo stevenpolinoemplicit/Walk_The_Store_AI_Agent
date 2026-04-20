@@ -7,7 +7,18 @@ metadata:
   project: walk-the-store
 ---
 
-Update `memory.md` with a new session log entry covering what happened this session.
+Update `memory.md` with a new session log entry covering what happened this session. Then review and update `README.md` if anything significant changed — new features, architectural decisions, new env vars, or updated behavior.
+
+## README Update Rules
+
+- Only update sections that are factually out of date. Do not rewrite sections that are still accurate.
+- Add new features to "What It Does" if they change user-facing behavior.
+- Update the Architecture diagram if the data flow changed.
+- Add new env vars to the required env vars table.
+- Keep the README concise — do not expand it beyond what is necessary to understand and operate the project.
+- After updating both files, remind the user to stage and commit each separately:
+  - `git add memory.md && git commit -m "docs: update session log"`
+  - `git add README.md && git commit -m "docs: update README"`
 
 ## Gotchas
 
