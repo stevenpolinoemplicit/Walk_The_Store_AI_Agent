@@ -16,6 +16,41 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 23 — Phase 1 suppression watcher built and deployed
+**Date:** 2026-04-21
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Suppression table has no `country_code`** — confirmed via pgAdmin column query; filter by `account_id` only; for multi-marketplace brands (e.g. Trtl US + CA), loop over all `account_ids` and combine results
+- **Deduplication key: `(account_id, asin, status_change_date)`** — stored in new `agent_state.suppression_alerts` table; ON CONFLICT DO NOTHING makes saves idempotent
+- **Severity elevation** — new suppressions bump brand severity: HEALTHY → at least WARNING; WARNING → CRITICAL if classification is POLICY_VIOLATION, CONDITION_COMPLAINT, AUTHENTICITY, or SAFETY
+- **7 classification categories** — keyword-matched against `issue_description`: MISSING_IMAGE, MISSING_INFO, POLICY_VIOLATION, CONDITION_COMPLAINT, AUTHENTICITY, SAFETY, DUPLICATE; UNKNOWN fallback
+- **gcloud default project was wrong** — `gcloud` CLI defaulted to `emplicit-ai-automations-polino`; build/deploy commands for this project must always include `--project=polino-agentic-solutions` explicitly
+- **agent_state schema created manually by Steven in pgAdmin** — Claude Code never executes DDL; DDL saved to `info/agent_state_schema.sql` for reference
+
+#### Files Created
+- `info/agent_state_schema.sql` — DDL for `agent_state` schema + `suppression_alerts` table (Steven ran manually in pgAdmin)
+- `controllers/suppression_classifier.py` — classifies `issue_description` text into 7 categories with severity + suggested action
+
+#### Files Updated
+- `tools/postgres.py` — added `get_suppressed_listings()`, `get_alerted_suppression_keys()`, `save_suppression_alerts()`
+- `models/report.py` — added `suppressed_listings: List[dict]` and `new_suppressions: List[dict]` fields to `HealthReport`
+- `controllers/report_builder.py` — fetches suppressions across all account_ids, diffs against alerted keys, classifies new ones, elevates severity, saves alerts after build
+- `views/slack_formatter.py` — added `_format_suppression_section()` + injected suppression block into `format_notification()`
+- `tools/report_generator.py` — added "Suppressed Listings" section to `_build_doc_text()` with NEW prefix and suggested action for new suppressions
+
+#### GCP
+- Deployed to Cloud Run job `walk-the-store` — build `1aeec8d3` succeeded; job updated and will run at 7am today with new features
+
+#### Still To Do
+- [ ] Monitor today's 7am run — check logs for "Suppressed listings found" and "New suppressions" lines
+- [ ] Verify `agent_state.suppression_alerts` has rows after the run
+- [ ] Second run tomorrow — confirm same suppressions do NOT re-alert (dedup working)
+- [ ] Phase 2: expand `sellercentral_sellerperformance_policycompliance_report` query to all 8+ categories
+- [ ] Phase 3: Claude triage — generate action plan + draft appeal template for new suppressions
+
+---
+
 ### Session 22 — Case log visibility planning (caselog_agent_planning)
 **Date:** 2026-04-20
 **Participants:** Claude Code

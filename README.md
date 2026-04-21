@@ -11,12 +11,13 @@ Autonomous daily agent that reads Amazon account health data for all Emplicit br
 1. **Reads** brand config from Google Sheets (Brand Code Mapping Sheet)
 2. **Queries** Intentwise-synced Postgres tables for 8 Amazon health metrics per brand
 3. **Checks** Teamwork task lists for open and recently completed tasks per brand
-4. **Classifies** each brand as Critical, Warning, or Healthy using Amazon's official thresholds
-5. **Generates** a Google Doc report per brand — written by Claude (Sonnet executor + Opus advisor) — saved to a dated subfolder (`April 20 2026`) inside the brand's Drive folder, shared with the emplicit.co domain
-6. **Posts** a cross-brand daily ops summary to the Slack ops channel
-7. **DMs** each ops manager a filtered summary of only their brands
-8. **DMs** Steven, Adam, and Emily the full cross-brand summary with a Drive link
-9. **Saves** all report data to the `walk_the_store.daily_health_reports` Postgres table
+4. **Checks** suppressed listings (`sellercentral_suppressedlistings_report`) for new suppressions — classifies issue type, suggests remediation, deduplicates via `agent_state.suppression_alerts`
+5. **Classifies** each brand as Critical, Warning, or Healthy using Amazon's official thresholds; new suppressions can elevate severity
+6. **Generates** a Google Doc report per brand — written by Claude (Sonnet executor + Opus advisor) — saved to a dated subfolder (`April 20 2026`) inside the brand's Drive folder, shared with the emplicit.co domain
+7. **Posts** a cross-brand daily ops summary to the Slack ops channel
+8. **DMs** each ops manager a filtered summary of only their brands
+9. **DMs** Steven, Adam, and Emily the full cross-brand summary with a Drive link
+10. **Saves** all report data to the `walk_the_store.daily_health_reports` Postgres table
 
 ---
 
@@ -226,6 +227,7 @@ The service account email must be shared as **Viewer** on both Google Sheets, an
 |---|---|
 | `amazon_source_data` | Intentwise-synced Amazon Seller Central tables (read-only by agent) |
 | `walk_the_store` | Agent-owned schema; `daily_health_reports` table stores one row per brand per day |
+| `agent_state` | Agent-owned schema; `suppression_alerts` table tracks which suppressions have already been alerted (deduplication) |
 
 The `daily_health_reports` table uses an upsert on `(brand_code, report_date)` — re-running the agent on the same day safely overwrites the previous run's data.
 
