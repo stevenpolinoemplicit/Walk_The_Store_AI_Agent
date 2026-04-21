@@ -299,6 +299,34 @@ def _build_doc_text(report: HealthReport, account: AccountConfig) -> str:
                 completed_on = t.get("completed_on", "")
                 lines.append(f"    - ✅ {t.get('name', 'Unnamed task')} ({assignee}) — {completed_on}")
 
+    # #note: Suppressed Listings section — shows all current suppressions with new ones flagged.
+    # New suppressions include classification category and suggested action for the ops team.
+    if report.suppressed_listings or report.new_suppressions:
+        lines += ["", "Suppressed Listings"]
+        new_asins = {s.get("asin") for s in report.new_suppressions}
+        for s in report.suppressed_listings:
+            asin = s.get("asin", "Unknown")
+            sku = s.get("sku", "")
+            date_changed = s.get("status_change_date", "")
+            issue = s.get("issue_description", "No description available.")
+            prefix = "NEW — " if asin in new_asins else ""
+            sku_str = f" | SKU: {sku}" if sku else ""
+            lines.append(f"  {prefix}ASIN: {asin}{sku_str} | Status change: {date_changed}")
+            lines.append(f"    Issue: {issue}")
+            if asin in new_asins:
+                action = next(
+                    (ns.get("suggested_action", "") for ns in report.new_suppressions if ns.get("asin") == asin),
+                    "",
+                )
+                category = next(
+                    (ns.get("category", "") for ns in report.new_suppressions if ns.get("asin") == asin),
+                    "",
+                )
+                if category:
+                    lines.append(f"    Category: {category}")
+                if action:
+                    lines.append(f"    Suggested Action: {action}")
+
     lines += [
         "",
         "─" * 60,

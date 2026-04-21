@@ -8,6 +8,7 @@ from datetime import date
 from typing import List, Optional
 
 from controllers.classifier import classify_account
+from controllers.suppression_classifier import classify_suppression
 from config.thresholds import CRITICAL, WARNING, HEALTHY, UNKNOWN
 from models.account import AccountConfig
 from models.report import HealthReport
@@ -69,12 +70,36 @@ def build_brand_reports(account: AccountConfig) -> List[HealthReport]:
         except Exception:
             logger.warning(f"[{brand}] Teamwork open tasks for list '{dept}' unavailable — skipping")
 
+    # Suppression watcher — fetch current suppressions and diff against already-alerted set
+    # #note: Fetched once per brand across ALL account_ids (no country_code on the suppression table).
+    # Multi-marketplace brands (e.g. US + CA) may have separate Intentwise account IDs — query each.
+    suppressed_listings: list[dict] = []
+    alerted_keys: set[tuple] = set()
+    for acc_id in account.account_ids.values():
+        suppressed_listings.extend(postgres.get_suppressed_listings(acc_id))
+        alerted_keys |= postgres.get_alerted_suppression_keys(acc_id)
+
+    new_suppressions: list[dict] = []
+    for listing in suppressed_listings:
+        key = (listing.get("asin"), listing.get("status_change_date"))
+        if key not in alerted_keys:
+            classification = classify_suppression(listing.get("issue_description"))
+            listing["category"] = classification["category"]
+            listing["classification_severity"] = classification["severity"]
+            listing["suggested_action"] = classification["suggested_action"]
+            new_suppressions.append(listing)
+
+    if new_suppressions:
+        logger.info(f"[{brand}] {len(new_suppressions)} new suppression(s) detected")
+    if suppressed_listings:
+        logger.info(f"[{brand}] {len(suppressed_listings)} total suppressed listing(s)")
+
     # No metrics at all — return a single unknown report so the brand appears in the summary
     if not metrics_by_country:
         findings, highest_severity = classify_account(
             {}, check_shipping=account.fbm, check_vtr=account.fbm
         )
-        return [HealthReport(
+        report = HealthReport(
             brand_code=account.brand_code,
             brand_name=brand,
             report_date=date.today(),
@@ -83,7 +108,13 @@ def build_brand_reports(account: AccountConfig) -> List[HealthReport]:
             teamwork_completed_tasks=completed_tasks,
             teamwork_open_tasks=open_tasks,
             data_gaps=["account_health_metrics"] + (["teamwork"] if teamwork_gap else []),
-        )]
+            suppressed_listings=suppressed_listings,
+            new_suppressions=new_suppressions,
+        )
+        # #note: Save new suppressions to agent_state so they don't re-alert on the next run
+        if new_suppressions:
+            postgres.save_suppression_alerts(new_suppressions)
+        return [report]
 
     # One HealthReport per country — brand_name and brand_code include country suffix
     reports: List[HealthReport] = []
@@ -107,11 +138,25 @@ def build_brand_reports(account: AccountConfig) -> List[HealthReport]:
             metrics, check_shipping=account.fbm, check_vtr=account.fbm
         )
 
+        # #note: Elevate severity if new suppressions include critical-category issues.
+        # A brand with no health metric issues but a new CONDITION_COMPLAINT suppression
+        # should not silently pass as HEALTHY — bump to at least WARNING, CRITICAL if warranted.
+        effective_severity = highest_severity
+        if new_suppressions:
+            worst_sup = max(
+                (s.get("classification_severity", WARNING) for s in new_suppressions),
+                key=lambda s: (s == CRITICAL, s == WARNING),
+            )
+            if effective_severity == HEALTHY:
+                effective_severity = worst_sup
+            elif effective_severity == WARNING and worst_sup == CRITICAL:
+                effective_severity = CRITICAL
+
         reports.append(HealthReport(
             brand_code=f"{account.brand_code}_{cc}",
             brand_name=f"{brand} {cc}",
             report_date=date.today(),
-            highest_severity=highest_severity,
+            highest_severity=effective_severity,
             findings=findings,
             late_shipment_rate=metrics["late_shipment_rate"],
             valid_tracking_rate=metrics["valid_tracking_rate"],
@@ -125,7 +170,13 @@ def build_brand_reports(account: AccountConfig) -> List[HealthReport]:
             teamwork_open_tasks=open_tasks,
             brand_context=None,
             data_gaps=data_gaps,
+            suppressed_listings=suppressed_listings,
+            new_suppressions=new_suppressions,
         ))
+
+    # #note: Save new suppressions once after all country reports are built — not per-country
+    if new_suppressions:
+        postgres.save_suppression_alerts(new_suppressions)
 
     return reports
 

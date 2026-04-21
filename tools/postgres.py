@@ -239,3 +239,79 @@ def get_account_health_metrics(
         raise
 
     return metrics
+
+
+# #note: Fetches all currently suppressed listings for a given Intentwise account_id.
+# Filters by most recent report_date so we only see the current snapshot, not historical rows.
+# Returns a list of dicts — one per suppressed listing. Returns empty list on any failure.
+def get_suppressed_listings(account_id: int) -> list[dict]:
+    sql = """
+        SELECT account_id, asin, sku, product_name, status, reason,
+               issue_description, status_change_date, report_date
+        FROM amazon_source_data.sellercentral_suppressedlistings_report
+        WHERE account_id = %s
+          AND report_date = (
+              SELECT MAX(report_date)
+              FROM amazon_source_data.sellercentral_suppressedlistings_report
+              WHERE account_id = %s
+          )
+        ORDER BY status_change_date DESC
+    """
+    try:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, (account_id, account_id))
+                rows = cur.fetchall()
+                return [dict(r) for r in rows]
+    except Exception as e:
+        logger.warning(f"get_suppressed_listings failed for account_id={account_id}: {e}")
+        return []
+
+
+# #note: Returns the set of (asin, status_change_date) tuples already saved to agent_state.suppression_alerts
+# for a given account_id. Used to diff against current suppressions and find only new ones.
+def get_alerted_suppression_keys(account_id: int) -> set[tuple]:
+    sql = """
+        SELECT asin, status_change_date
+        FROM agent_state.suppression_alerts
+        WHERE account_id = %s
+    """
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (account_id,))
+                rows = cur.fetchall()
+                return {(row[0], row[1]) for row in rows}
+    except Exception as e:
+        logger.warning(f"get_alerted_suppression_keys failed for account_id={account_id}: {e}")
+        return set()
+
+
+# #note: Inserts new suppression alerts into agent_state.suppression_alerts.
+# ON CONFLICT DO NOTHING ensures idempotency — safe to call even if some rows already exist.
+# Does nothing and logs a warning if the insert fails — never raises so the main run is unaffected.
+def save_suppression_alerts(alerts: list[dict]) -> None:
+    if not alerts:
+        return
+    sql = """
+        INSERT INTO agent_state.suppression_alerts
+            (account_id, asin, sku, status_change_date, issue_description, report_date)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (account_id, asin, status_change_date) DO NOTHING
+    """
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                for alert in alerts:
+                    cur.execute(sql, (
+                        alert.get("account_id"),
+                        alert.get("asin"),
+                        alert.get("sku"),
+                        alert.get("status_change_date"),
+                        alert.get("issue_description"),
+                        alert.get("report_date"),
+                    ))
+            conn.commit()
+        logger.info(f"Saved {len(alerts)} suppression alert(s) to agent_state")
+    except Exception as e:
+        logger.warning(f"save_suppression_alerts failed: {e}")

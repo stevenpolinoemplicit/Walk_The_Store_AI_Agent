@@ -42,3 +42,9 @@ class HealthReport(BaseModel):
 
     # Tracks which metrics had no data so the report notes gaps instead of crashing
     data_gaps: List[str] = []
+
+    # All currently suppressed listings for this brand (from sellercentral_suppressedlistings_report)
+    suppressed_listings: List[dict] = []
+
+    # Subset of suppressed_listings that are newly detected since the last run — triggers urgent alert
+    new_suppressions: List[dict] = []

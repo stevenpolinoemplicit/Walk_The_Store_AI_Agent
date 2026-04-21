@@ -53,6 +53,42 @@ def _format_teamwork_section(
     return "\n".join(lines)
 
 
+# #note: Formats suppressed listings into a Slack mrkdwn block.
+# New suppressions (not previously alerted) appear with urgent 🔴 NEW prefix and suggested action.
+# Previously alerted suppressions appear as a quieter informational line.
+# Returns None if there are no suppressions at all.
+def _format_suppression_section(report: HealthReport) -> Optional[str]:
+    if not report.suppressed_listings and not report.new_suppressions:
+        return None
+
+    lines: list[str] = []
+
+    if report.new_suppressions:
+        lines.append(f"*🔴 NEW: {len(report.new_suppressions)} suppressed listing(s) require action*")
+        for s in report.new_suppressions[:5]:
+            asin = s.get("asin", "Unknown ASIN")
+            sku = s.get("sku", "")
+            category = s.get("category", "UNKNOWN")
+            action = s.get("suggested_action", "Review in Seller Central.")
+            sku_str = f" | SKU: {sku}" if sku else ""
+            lines.append(f"  📬 *ASIN: {asin}*{sku_str}")
+            lines.append(f"     Category: {category}")
+            lines.append(f"     Action: {action}")
+        if len(report.new_suppressions) > 5:
+            lines.append(f"  _(+{len(report.new_suppressions) - 5} more — see Drive report)_")
+
+    already_alerted = [
+        s for s in report.suppressed_listings
+        if s not in report.new_suppressions
+    ]
+    if already_alerted:
+        lines.append(
+            f"📋 {len(already_alerted)} listing(s) suppressed (previously alerted — see Drive report)"
+        )
+
+    return "\n".join(lines) if lines else None
+
+
 # #note: Builds a brief Slack Block Kit notification for one brand — summary + Drive link.
 #        Used by the POC flow: orchestrator calls this after creating the Drive report.
 #        Returns (fallback_text, blocks) — healthy accounts return (None, None) to suppress posting.
@@ -98,6 +134,12 @@ def format_notification(
         },
         {"type": "divider"},
     ]
+
+    # #note: Append suppression block when listings exist — new ones shown urgently, old ones as info
+    suppression_text = _format_suppression_section(report)
+    if suppression_text:
+        blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": suppression_text}})
+        blocks.append({"type": "divider"})
 
     return fallback_text, blocks
 
