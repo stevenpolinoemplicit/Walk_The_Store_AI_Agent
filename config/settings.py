@@ -63,5 +63,5 @@ NOTIFY_ALWAYS_IDS: list[str] = ["U0AJYBWU03X", "U5H5GLJLV", "UEKN0TY2D"]
 
 # --- Weekend On-Call Coverage ---
 # #note: On Saturday and Sunday, ops manager DMs are replaced by these on-call users:
-#        Axel (U0339BL8PSN), Kay (U01J7UBBX3K), Milagros (U02GXHL9Q9M), Albenis (U01JLUZ534Y)
-WEEKEND_ONCALL_IDS: list[str] = ["U0339BL8PSN", "U01J7UBBX3K", "U02GXHL9Q9M", "U01JLUZ534Y"]
+#        Axel (U0339BL8PSN), Kay (U01J7UBBX3K), Milagros (U02GXHL9Q9M)
+WEEKEND_ONCALL_IDS: list[str] = ["U0339BL8PSN", "U01J7UBBX3K", "U02GXHL9Q9M"]
