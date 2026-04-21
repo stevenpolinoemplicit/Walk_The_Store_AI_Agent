@@ -16,6 +16,43 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 24 — Run stabilization: timeout fix, narrative bug, Sonnet-only, skip healthy narratives
+**Date:** 2026-04-21
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Task timeout was 600s (10 min) — too short for 50+ brands** — increased to 3600s; root cause was Claude advisor API calls (~50s/brand × 50 brands = ~40 min total)
+- **Max retries set to 0** — retries cause duplicate Drive docs since each retry creates fresh docs without checking for existing ones
+- **Removed Opus advisor** — advisor strategy added in Session 23 was the cause of today's timeout; removed Opus, now Sonnet-only; ~10-15s per call instead of ~50s
+- **Skip narrative for healthy/unknown brands** — LLM call skipped entirely for brands with no findings; template used instead; reduces API calls by ~30-40%
+- **Narrative bug fixed** — `block.text` can be `None` on advisor tool-use blocks even when `hasattr(block, "text")` is True; `"\n".join()` raised `TypeError`; fixed by adding `and block.text is not None` to filter
+- **Teamwork 401 — expired token** — all brands failing on Teamwork; token updated in Secret Manager; takes effect on next execution
+- **ASIN deactivations are a case log gap** — suppression table only captures hidden listings, not fully removed/deactivated ASINs; need to find Intentwise table for this
+
+#### Files Updated
+- `tools/report_generator.py` — removed Opus advisor tool, Sonnet-only; skip `_generate_narrative()` for healthy/unknown brands; fixed `block.text is not None` bug
+- `CLAUDE.md` — added rule: never solicit API tokens or credentials from user
+
+#### GCP Changes
+- `walk-the-store` job task timeout: 600s → 3600s
+- `walk-the-store` job max retries: 3 → 0
+- `TEAMWORK_API_TOKEN` secret updated to new token
+
+#### Today's Run (walk-the-store-v9vqs)
+- Started 14:00 UTC, timed out after 3 retries (~41 min total)
+- 54 reports saved to Postgres and Drive docs created (with duplicates due to retries)
+- Ops summary + Slack DMs never sent (job killed before reaching that step)
+- Suppression watcher confirmed working: UpWellness (2), Mokai Pets (1), Trtl (1), Organifi (13)
+
+#### Still To Do
+- [ ] Check Intentwise for ASIN deactivations table (e.g. `sellercentral_inactive_listings`) — main remaining case log gap
+- [ ] Phase 2: expand `sellercentral_sellerperformance_policycompliance_report` query to all 8+ categories
+- [ ] Phase 3: Claude triage — generate action plan + draft appeal template for new suppressions
+- [ ] Verify Teamwork 401s resolve on tomorrow's run with new token
+- [ ] Verify dedup working tomorrow — same suppressions should NOT re-alert
+
+---
+
 ### Session 23 — Phase 1 suppression watcher built and deployed
 **Date:** 2026-04-21
 **Participants:** Claude Code

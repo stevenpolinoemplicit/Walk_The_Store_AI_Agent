@@ -187,11 +187,11 @@ Each daily run produces:
 
 The dated subfolder is created automatically on the first report of the day and reused for all subsequent reports in the same run.
 
-### Report Narrative (Advisor Strategy)
+### Report Narrative
 
-Report narratives are written by Claude using the **advisor strategy**: Sonnet (`claude-sonnet-4-6`) drives the full run as the executor; Opus (`claude-opus-4-6`) is consulted as the advisor (up to 3 times per report) when Sonnet encounters complex or multi-issue situations. This produces near-Opus-quality analysis at near-Sonnet cost.
+Report narratives for Critical and Warning brands are written by Claude Sonnet (`claude-sonnet-4-6`). Healthy/Unknown brands use the deterministic template only — no API call is made.
 
-- **LLM sections:** Executive Summary and Key Findings prose
+- **LLM sections:** Executive Summary and Key Findings prose (Critical/Warning only)
 - **Deterministic sections:** Key Metrics table (exact values), Detailed Findings, Teamwork Activity, Footer
 - **Fallback:** if the API call fails for any reason, the templated version is used — the report always ships
 
