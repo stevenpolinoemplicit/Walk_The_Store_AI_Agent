@@ -34,7 +34,8 @@
       "Bash(gcloud run jobs executions:*)",
       "Bash(gcloud logging:*)",
       "Bash(grep -v \"^$\")",
-      "Bash(gcloud run jobs list:*)"
+      "Bash(gcloud run jobs list:*)",
+      "Bash(gcloud run jobs update:*)"
     ]
   }
 }
