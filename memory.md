@@ -16,6 +16,22 @@ Owner: Steven Polino | Approvers: Adam Weiler, Emily Lindahl
 
 ## Session Log
 
+### Session 25 — Add model version requirement to CLAUDE.md
+**Date:** 2026-04-21
+**Participants:** Claude Code
+
+#### Decisions Made
+- **Always use latest/most powerful model** — Steven wants every Claude Code session to default to `claude-opus-4-6`; configured globally in `~/.claude/settings.json` with `"model": "claude-opus-4-6"`
+- **Added CLAUDE.md Section 16** — codifies this as a project standard so contributors don't downgrade
+
+#### Files Updated
+- `CLAUDE.md` — added Section 16 (Model Version — Always Use Latest); updated "Last updated" date to 2026-04-21
+
+#### Still To Do
+- [ ] README still references "Sonnet + Opus advisor" in two places (lines 6 and 39) — should be updated to "Sonnet-only" to match Session 24 changes
+
+---
+
 ### Session 24 — Run stabilization: timeout fix, narrative bug, Sonnet-only, skip healthy narratives
 **Date:** 2026-04-21
 **Participants:** Claude Code
