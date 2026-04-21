@@ -404,4 +404,19 @@ Each `.claude/commands/<name>.md` file contains the prompt Claude executes when 
 - Skill files in `.claude/commands/` must always be committed so all contributors have access
 
 ---
-*Last updated: 2026-04-08*
+
+## 16. Model Version — Always Use Latest
+
+All Claude Code sessions in this project must run on **`claude-opus-4-6`** (or the latest, most powerful Claude model available at the time).
+
+### Configuration
+- **Global setting:** `~/.claude/settings.json` contains `"model": "claude-opus-4-6"`. This applies to all projects on Steven's machine.
+- **Precedence order** (highest to lowest): CLI flags → `.claude/settings.local.json` → `.claude/settings.json` → `~/.claude/settings.json`
+- If a newer, more powerful model is released, update the `model` value in `~/.claude/settings.json` to match.
+
+### Rules
+- Do not downgrade the model in any settings file without Steven's explicit approval.
+- If a contributor reports they are running on a less powerful model, direct them to set `"model": "claude-opus-4-6"` in their `~/.claude/settings.json`.
+
+---
+*Last updated: 2026-04-21*
