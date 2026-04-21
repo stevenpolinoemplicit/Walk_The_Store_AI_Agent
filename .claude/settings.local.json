@@ -30,7 +30,11 @@
       "WebFetch(domain:sellercentral.amazon.com)",
       "Bash(xargs grep:*)",
       "Bash(gcloud secrets versions access:*)",
-      "Bash(gcloud services list:*)"
+      "Bash(gcloud services list:*)",
+      "Bash(gcloud run jobs executions:*)",
+      "Bash(gcloud logging:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(gcloud run jobs list:*)"
     ]
   }
 }

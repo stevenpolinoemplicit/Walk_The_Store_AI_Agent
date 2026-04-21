@@ -177,7 +177,7 @@ def _generate_narrative(report: HealthReport, account: AccountConfig) -> Optiona
         )
         # Extract the text content block from the response
         narrative = "\n".join(
-            block.text for block in response.content if hasattr(block, "text")
+            block.text for block in response.content if hasattr(block, "text") and block.text is not None
         ).strip()
         logger.info(
             f"[{report.brand_name}] Narrative generated via advisor strategy "
