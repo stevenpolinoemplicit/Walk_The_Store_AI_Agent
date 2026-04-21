@@ -120,10 +120,9 @@ def _check_severity(report: HealthReport, check_name: str) -> str:
     return UNKNOWN
 
 
-# #note: Calls Sonnet (executor) with Opus as advisor to write the Executive Summary and Key Findings
-# narrative prose. Sonnet handles routine reports; Opus is consulted (up to 3 times) when Sonnet
-# escalates on complex or multi-issue situations. Returns None on any failure so the caller can fall
-# back to the deterministic template — the report always ships even if the LLM call fails.
+# #note: Calls Sonnet to write the Executive Summary and Key Findings narrative prose.
+# Skipped entirely for healthy brands (no findings to narrate). Returns None on any failure so the
+# caller can fall back to the deterministic template — the report always ships even if the LLM call fails.
 def _generate_narrative(report: HealthReport, account: AccountConfig) -> Optional[str]:
     _SYSTEM_PROMPT = (
         "You are an Amazon account health analyst writing internal reports for an e-commerce agency. "
@@ -163,15 +162,6 @@ def _generate_narrative(report: HealthReport, account: AccountConfig) -> Optiona
         response = client.messages.create(
             model=settings.ANTHROPIC_EXECUTOR_MODEL,
             max_tokens=1024,
-            extra_headers={"anthropic-beta": "advisor-tool-2026-03-01"},
-            tools=[
-                {
-                    "type": "advisor_20260301",
-                    "name": "advisor",
-                    "model": settings.ANTHROPIC_ADVISOR_MODEL,
-                    "max_uses": 3,
-                }
-            ],
             system=_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
         )
@@ -198,8 +188,9 @@ def _build_doc_text(report: HealthReport, account: AccountConfig) -> str:
     severity_label = _SEVERITY_LABEL.get(report.highest_severity, "⚪ UNKNOWN")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
 
-    # Attempt LLM-generated narrative (Sonnet executor + Opus advisor); fall back to template on failure
-    llm_narrative = _generate_narrative(report, account)
+    # Attempt LLM-generated narrative (Sonnet only); skipped for healthy brands, fall back to template on failure
+    is_healthy = report.highest_severity in (HEALTHY, UNKNOWN)
+    llm_narrative = None if is_healthy else _generate_narrative(report, account)
 
     lines: list[str] = [
         "EMPLICIT — Amazon Account Health Report",
