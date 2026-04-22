@@ -2,8 +2,8 @@
 # Replaces postgres.get_active_accounts(). Reads the Brand Code Mapping Sheet for brand config
 # and the People Lookup Sheet to find each brand's AM Slack ID.
 # Per-country Intentwise account IDs are read from cols S (iw_account_id_us), T (iw_account_id_ca),
-# U (iw_account_id_mx). Only numeric values are used — blank or non-numeric entries are skipped.
-# FBM is col V, FBA is col W.
+# U (iw_account_id_mx), V (iw_account_id_au). Only numeric values are used — blank or non-numeric
+# entries are skipped. FBM is col W, FBA is col X.
 
 import logging
 from typing import List, Optional
@@ -88,21 +88,19 @@ def get_active_accounts() -> List[AccountConfig]:
 
     accounts: List[AccountConfig] = []
     for row in records:
-        if not row.get("reconciliation_in_scope"):
-            continue
-
         brand_code = str(row.get("brand_code", "")).strip()
         mws_seller_id = str(row.get("seller_id", "")).strip()
 
-        if not brand_code or not mws_seller_id:
-            logger.warning(f"Skipping row with missing brand_code or seller_id: {row}")
+        if not brand_code:
+            logger.warning(f"Skipping row with missing brand_code: {row}")
             continue
 
-        # #note: Per-country Intentwise account IDs from cols S/T/U — only numeric values are used
+        # #note: Per-country Intentwise account IDs from cols S/T/U/V — only numeric values are used
         _country_cols = {
             "US": row.get("iw_account_id_us", ""),
             "CA": row.get("iw_account_id_ca", ""),
             "MX": row.get("iw_account_id_mx", ""),
+            "AU": row.get("iw_account_id_au", ""),
         }
         account_ids: dict[str, int] = {}
         for cc, raw in _country_cols.items():
@@ -121,7 +119,7 @@ def get_active_accounts() -> List[AccountConfig]:
             for col in _TW_COLUMNS
         }
 
-        # #note: FBM col V — 1 means brand ships its own orders (MFN); FBA col W — 1 means Amazon fulfills
+        # #note: FBM col W — 1 means brand ships its own orders (MFN); FBA col X — 1 means Amazon fulfills
         fbm = str(row.get("FBM", "")).strip() == "1"
         fba = str(row.get("FBA", "")).strip() == "1"
 
