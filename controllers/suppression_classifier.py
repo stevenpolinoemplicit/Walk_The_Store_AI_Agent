@@ -1,8 +1,10 @@
 # suppression_classifier.py — classifies suppressed listing issue descriptions into actionable categories.
-# Called by report_builder.py for each new suppression detected. Returns category, severity, and
-# a suggested action for the ops team. Keyword matching is case-insensitive against issue_description.
+# Called by report_builder.py for each suppression. Returns category, severity, suggested action,
+# enforcement_action, reason_bucket, and (when applicable) the parent_asin extracted from the
+# issue text. Keyword matching is case-insensitive against issue_description.
 
 import logging
+import re
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -11,9 +13,20 @@ logger = logging.getLogger(__name__)
 CRITICAL = "critical"
 WARNING = "warning"
 
+# #note: The only enforcement action represented in sellercentral_suppressedlistings_report is
+# Amazon's "Search Suppressed" state — the detail page remains live and buyable via direct link.
+# This label is attached to every classification so downstream readers don't confuse
+# "suppressed" with "unbuyable".
+ENFORCEMENT_ACTION = "Search Suppressed — detail page still buyable via direct link"
+
+# #note: Regex to extract a parent ASIN from issue_description text.
+# Matches phrases like "its parent ASIN B0CSKT2W9W" — ASINs are always 10 chars: B + 9 alphanumerics.
+_PARENT_ASIN_RE = re.compile(r"parent\s+ASIN\s+(B[0-9A-Z]{9})", re.IGNORECASE)
+
 # #note: Ordered list of classification rules — first match wins.
 # Each rule is (keywords_any_of, category, severity, suggested_action).
 # Order matters: more specific / higher-severity rules come first.
+# PARENT_ASIN_ISSUE is handled separately (regex-based) before this list runs.
 _RULES: list[tuple[list[str], str, str, str]] = [
     (
         ["policy violation", "policy compliance", "restricted", "prohibited"],
@@ -65,16 +78,43 @@ _RULES: list[tuple[list[str], str, str, str]] = [
 _UNKNOWN_ACTION = "Review suppression reason in Seller Central and take appropriate action."
 
 
-# #note: Classifies a suppression issue_description string into a category, severity, and suggested action.
-# Iterates the rule list in order — first keyword match wins.
-# Returns a dict with keys: category, severity, suggested_action.
-# Returns UNKNOWN category if no rule matches — never raises.
-def classify_suppression(issue_description: Optional[str]) -> dict:
+# #note: Classifies a suppression row into category, severity, suggested action, enforcement action,
+# reason_bucket pass-through, and (if present) parent_asin.
+# Parent-ASIN inheritance is detected first via regex — those rows don't need per-listing fixes,
+# they're waiting on the parent ASIN to be fixed.
+# If no rule matches, returns UNKNOWN category. Never raises.
+def classify_suppression(
+    issue_description: Optional[str],
+    reason: Optional[str] = None,
+) -> dict:
+    base = {
+        "enforcement_action": ENFORCEMENT_ACTION,
+        "reason_bucket": reason,
+        "parent_asin": None,
+    }
+
     if not issue_description:
         return {
+            **base,
             "category": "UNKNOWN",
             "severity": WARNING,
             "suggested_action": _UNKNOWN_ACTION,
+        }
+
+    # #note: Parent-ASIN inheritance takes priority — the child ASIN can't be fixed directly.
+    parent_match = _PARENT_ASIN_RE.search(issue_description)
+    if parent_match:
+        parent_asin = parent_match.group(1).upper()
+        logger.debug(f"Suppression classified as PARENT_ASIN_ISSUE (parent={parent_asin})")
+        return {
+            **base,
+            "category": "PARENT_ASIN_ISSUE",
+            "severity": WARNING,
+            "suggested_action": (
+                f"This ASIN is suppressed because its parent ASIN {parent_asin} has issues. "
+                f"Fix the parent ASIN to lift the suppression on this one."
+            ),
+            "parent_asin": parent_asin,
         }
 
     text = issue_description.lower()
@@ -83,6 +123,7 @@ def classify_suppression(issue_description: Optional[str]) -> dict:
         if any(kw in text for kw in keywords):
             logger.debug(f"Suppression classified as {category}: matched in '{text[:80]}'")
             return {
+                **base,
                 "category": category,
                 "severity": severity,
                 "suggested_action": action,
@@ -90,6 +131,7 @@ def classify_suppression(issue_description: Optional[str]) -> dict:
 
     logger.debug(f"Suppression unclassified (UNKNOWN): '{text[:80]}'")
     return {
+        **base,
         "category": "UNKNOWN",
         "severity": WARNING,
         "suggested_action": _UNKNOWN_ACTION,
