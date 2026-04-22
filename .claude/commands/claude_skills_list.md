@@ -88,6 +88,13 @@ Skills are prompts — Claude reads the command file and executes the instructio
 
 ---
 
+### `/redeploy`
+**File:** `.claude/commands/redeploy.md`
+**Description:** Rebuilds the container image and updates the Cloud Run Job to use it. **Deploy/update only — NEVER triggers a live execution or forced rerun.** Checks git state, collects deploy env vars, runs `gcloud builds submit`, runs `gcloud run jobs update`, and verifies the new image is pinned on the job. Explicitly refuses to run `gcloud run jobs execute`.
+**When to use:** After code changes are ready to ship, once `/deploy-checklist` passes. The next scheduled run will pick up the new image — no live trigger is ever part of this flow.
+
+---
+
 ## Integration Activation (run when credentials arrive)
 
 ### `/intentwise-ready` [DEPRECATED — Intentwise MCP integration removed]
@@ -125,4 +132,4 @@ Skills are prompts — Claude reads the command file and executes the instructio
 3. The skill is immediately available as `/your-skill-name` in any Claude Code session
 
 ---
-*Last updated: 2026-04-17*
+*Last updated: 2026-04-22*
