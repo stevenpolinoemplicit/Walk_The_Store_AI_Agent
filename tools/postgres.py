@@ -121,7 +121,7 @@ def save_report(report: HealthReport) -> None:
 
 
 # #note: Fetches health metrics for one account_id + country_code pair.
-# Each country now has its own Intentwise account_id (from iw_account_id_us/ca/mx in the sheet).
+# Each country now has its own Intentwise account_id (from iw_account_id_us/ca/mx/au in the sheet).
 # Queries filter by both account_id AND country_code. Returns a flat metrics dict for that country.
 # Each sub-query is isolated so a single table failure does not block the rest.
 def get_account_health_metrics(
