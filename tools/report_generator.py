@@ -291,32 +291,53 @@ def _build_doc_text(report: HealthReport, account: AccountConfig) -> str:
                 lines.append(f"    - ✅ {t.get('name', 'Unnamed task')} ({assignee}) — {completed_on}")
 
     # #note: Suppressed Listings section — shows all current suppressions with new ones flagged.
-    # New suppressions include classification category and suggested action for the ops team.
+    # Each row now carries marketplace (country_code), enforcement action, reason bucket,
+    # classification category, parent ASIN (when applicable), and a lag-risk indicator.
+    # A footer note explains the "Search Suppressed" enforcement state and the lag flag so
+    # ops don't confuse search-hidden listings with unbuyable ones.
     if report.suppressed_listings or report.new_suppressions:
         lines += ["", "Suppressed Listings"]
         new_asins = {s.get("asin") for s in report.new_suppressions}
         for s in report.suppressed_listings:
             asin = s.get("asin", "Unknown")
             sku = s.get("sku", "")
+            country = s.get("country_code") or "—"
             date_changed = s.get("status_change_date", "")
             issue = s.get("issue_description", "No description available.")
+            enforcement = s.get("enforcement_action") or "Search Suppressed"
+            reason_bucket = s.get("reason_bucket") or "—"
+            category = s.get("category") or "UNKNOWN"
+            parent_asin = s.get("parent_asin")
+            lag_tag = "  [report lag possible]" if s.get("lag_risk") else ""
             prefix = "NEW — " if asin in new_asins else ""
             sku_str = f" | SKU: {sku}" if sku else ""
-            lines.append(f"  {prefix}ASIN: {asin}{sku_str} | Status change: {date_changed}")
+            lines.append(
+                f"  {prefix}ASIN: {asin}{sku_str} | Marketplace: {country} | Status change: {date_changed}{lag_tag}"
+            )
+            lines.append(f"    Enforcement: {enforcement}")
+            lines.append(f"    Reason bucket: {reason_bucket}  |  Category: {category}")
+            if parent_asin:
+                lines.append(f"    Parent ASIN: {parent_asin}")
             lines.append(f"    Issue: {issue}")
             if asin in new_asins:
                 action = next(
                     (ns.get("suggested_action", "") for ns in report.new_suppressions if ns.get("asin") == asin),
                     "",
                 )
-                category = next(
-                    (ns.get("category", "") for ns in report.new_suppressions if ns.get("asin") == asin),
-                    "",
-                )
-                if category:
-                    lines.append(f"    Category: {category}")
                 if action:
                     lines.append(f"    Suggested Action: {action}")
+
+        # #note: Clarifying footer — mirrors the Slack note so the Doc is self-explanatory.
+        lines += [
+            "",
+            "Note on suppression states:",
+            "  • 'Search Suppressed' means the listing is hidden from Amazon search results,",
+            "    but the product detail page is still live and buyable via direct link.",
+            "  • '[report lag possible]' flags rows where the suppression state may already",
+            "    have changed on Amazon's side — either the Intentwise download is 2+ days",
+            "    stale, or the status flipped on the same day this report was pulled.",
+            "    Re-check Seller Central before acting on these rows.",
+        ]
 
     lines += [
         "",
