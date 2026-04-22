@@ -53,9 +53,33 @@ def _format_teamwork_section(
     return "\n".join(lines)
 
 
+# #note: Builds the one-line per-listing detail shown under each NEW suppression.
+# Includes marketplace (country_code), enforcement action, reason bucket, and a ⏳ lag tag
+# when the row may not reflect Amazon's current state.
+def _format_new_suppression_lines(s: dict) -> list[str]:
+    asin = s.get("asin", "Unknown ASIN")
+    sku = s.get("sku", "")
+    category = s.get("category", "UNKNOWN")
+    action = s.get("suggested_action", "Review in Seller Central.")
+    country = s.get("country_code") or "—"
+    enforcement = s.get("enforcement_action") or "Search Suppressed"
+    reason_bucket = s.get("reason_bucket") or "—"
+    sku_str = f" | SKU: {sku}" if sku else ""
+    lag_tag = "  ⏳ report lag possible" if s.get("lag_risk") else ""
+
+    out = [
+        f"  📬 *ASIN: {asin}*{sku_str}  `{country}`{lag_tag}",
+        f"     Enforcement: {enforcement}",
+        f"     Reason bucket: {reason_bucket}  |  Category: {category}",
+        f"     Action: {action}",
+    ]
+    return out
+
+
 # #note: Formats suppressed listings into a Slack mrkdwn block.
-# New suppressions (not previously alerted) appear with urgent 🔴 NEW prefix and suggested action.
-# Previously alerted suppressions appear as a quieter informational line.
+# New suppressions (not previously alerted) appear with urgent 🔴 NEW prefix + full detail.
+# Previously alerted suppressions are summarized by count with a country breakdown line.
+# A clarifying note explains the ⏳ lag tag and the "search suppressed" enforcement state.
 # Returns None if there are no suppressions at all.
 def _format_suppression_section(report: HealthReport) -> Optional[str]:
     if not report.suppressed_listings and not report.new_suppressions:
@@ -66,14 +90,7 @@ def _format_suppression_section(report: HealthReport) -> Optional[str]:
     if report.new_suppressions:
         lines.append(f"*🔴 NEW: {len(report.new_suppressions)} suppressed listing(s) require action*")
         for s in report.new_suppressions[:5]:
-            asin = s.get("asin", "Unknown ASIN")
-            sku = s.get("sku", "")
-            category = s.get("category", "UNKNOWN")
-            action = s.get("suggested_action", "Review in Seller Central.")
-            sku_str = f" | SKU: {sku}" if sku else ""
-            lines.append(f"  📬 *ASIN: {asin}*{sku_str}")
-            lines.append(f"     Category: {category}")
-            lines.append(f"     Action: {action}")
+            lines.extend(_format_new_suppression_lines(s))
         if len(report.new_suppressions) > 5:
             lines.append(f"  _(+{len(report.new_suppressions) - 5} more — see Drive report)_")
 
@@ -82,8 +99,25 @@ def _format_suppression_section(report: HealthReport) -> Optional[str]:
         if s not in report.new_suppressions
     ]
     if already_alerted:
+        # Country breakdown for already-alerted so ops can see marketplace spread at a glance
+        country_counts: dict[str, int] = {}
+        for s in already_alerted:
+            cc = s.get("country_code") or "—"
+            country_counts[cc] = country_counts.get(cc, 0) + 1
+        breakdown = ", ".join(f"{cc}: {n}" for cc, n in sorted(country_counts.items()))
         lines.append(
-            f"📋 {len(already_alerted)} listing(s) suppressed (previously alerted — see Drive report)"
+            f"📋 {len(already_alerted)} listing(s) suppressed (previously alerted — {breakdown}) — see Drive report"
+        )
+
+    # #note: Clarifying footer — explains the enforcement state and the ⏳ lag tag.
+    # Keeps ops from confusing "Search Suppressed" with "unbuyable" and signals when a row
+    # might no longer reflect Amazon's live state.
+    if lines:
+        lines.append(
+            "_Note: `Search Suppressed` = hidden from Amazon search but the product detail "
+            "page is still live and buyable via direct link. ⏳ flags rows where the suppression "
+            "state may already have changed on Amazon's side (download 2+ days stale OR status "
+            "changed today)._"
         )
 
     return "\n".join(lines) if lines else None
