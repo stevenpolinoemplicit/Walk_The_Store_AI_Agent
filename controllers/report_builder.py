@@ -71,22 +71,60 @@ def build_brand_reports(account: AccountConfig) -> List[HealthReport]:
             logger.warning(f"[{brand}] Teamwork open tasks for list '{dept}' unavailable — skipping")
 
     # Suppression watcher — fetch current suppressions and diff against already-alerted set
-    # #note: Fetched once per brand across ALL account_ids (no country_code on the suppression table).
-    # Multi-marketplace brands (e.g. US + CA) may have separate Intentwise account IDs — query each.
+    # #note: Fetched per (country_code, account_id) pair. The suppression table has no country_code
+    # column — we attach it ourselves from the brand mapping sheet so downstream reports can
+    # show which marketplace each suppression came from (US, CA, AU, etc.).
     suppressed_listings: list[dict] = []
     alerted_keys: set[tuple] = set()
-    for acc_id in account.account_ids.values():
-        suppressed_listings.extend(postgres.get_suppressed_listings(acc_id))
+    today = date.today()
+    for cc, acc_id in account.account_ids.items():
+        for listing in postgres.get_suppressed_listings(acc_id):
+            listing["country_code"] = cc
+            suppressed_listings.append(listing)
         alerted_keys |= postgres.get_alerted_suppression_keys(acc_id)
 
+    # #note: Enrich every suppression (new + already-alerted) with classification, enforcement
+    # action, reason bucket, parent ASIN (when applicable), and report-lag signals.
+    # lag_risk flags rows where the suppression data may not reflect Amazon's current state —
+    # either because Intentwise's download is 2+ days stale OR because the status just flipped
+    # today (Amazon sometimes re-crawls and lifts within hours). See Slack/Doc output for the
+    # human-readable note explaining this.
     new_suppressions: list[dict] = []
     for listing in suppressed_listings:
+        classification = classify_suppression(
+            listing.get("issue_description"),
+            reason=listing.get("reason"),
+        )
+        listing["category"] = classification["category"]
+        listing["classification_severity"] = classification["severity"]
+        listing["suggested_action"] = classification["suggested_action"]
+        listing["enforcement_action"] = classification["enforcement_action"]
+        listing["reason_bucket"] = classification["reason_bucket"]
+        listing["parent_asin"] = classification.get("parent_asin")
+
+        # Report-lag derivation
+        status_change = listing.get("status_change_date")
+        report_date_val = listing.get("report_date")
+        download_date_val = listing.get("download_date")
+        days_since_download = (
+            (today - download_date_val).days if download_date_val else None
+        )
+        days_since_status_change = (
+            (report_date_val - status_change).days
+            if report_date_val and status_change
+            else None
+        )
+        lag_risk = False
+        if days_since_download is not None and days_since_download >= 2:
+            lag_risk = True
+        if status_change and report_date_val and status_change == report_date_val:
+            lag_risk = True
+        listing["days_since_download"] = days_since_download
+        listing["days_since_status_change"] = days_since_status_change
+        listing["lag_risk"] = lag_risk
+
         key = (listing.get("asin"), listing.get("status_change_date"))
         if key not in alerted_keys:
-            classification = classify_suppression(listing.get("issue_description"))
-            listing["category"] = classification["category"]
-            listing["classification_severity"] = classification["severity"]
-            listing["suggested_action"] = classification["suggested_action"]
             new_suppressions.append(listing)
 
     if new_suppressions:
