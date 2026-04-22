@@ -36,7 +36,8 @@
       "Bash(grep -v \"^$\")",
       "Bash(gcloud run jobs list:*)",
       "Bash(gcloud run jobs update:*)",
-      "Skill(update-config)"
+      "Skill(update-config)",
+      "Bash(gcloud config:*)"
     ]
   }
 }
