@@ -243,11 +243,12 @@ def get_account_health_metrics(
 
 # #note: Fetches all currently suppressed listings for a given Intentwise account_id.
 # Filters by most recent report_date so we only see the current snapshot, not historical rows.
+# download_date is included so report_builder can derive report-lag signals.
 # Returns a list of dicts — one per suppressed listing. Returns empty list on any failure.
 def get_suppressed_listings(account_id: int) -> list[dict]:
     sql = """
         SELECT account_id, asin, sku, product_name, status, reason,
-               issue_description, status_change_date, report_date
+               issue_description, status_change_date, report_date, download_date
         FROM amazon_source_data.sellercentral_suppressedlistings_report
         WHERE account_id = %s
           AND report_date = (
