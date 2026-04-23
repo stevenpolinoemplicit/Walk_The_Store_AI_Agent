@@ -38,7 +38,8 @@
       "Bash(gcloud run jobs update:*)",
       "Skill(update-config)",
       "Bash(gcloud config:*)",
-      "Bash(gcloud run jobs describe:*)"
+      "Bash(gcloud run jobs describe:*)",
+      "Bash(gcloud builds:*)"
     ]
   }
 }
