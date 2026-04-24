@@ -36,6 +36,7 @@ Read the current conversation and identify:
 - Bugs found and how they were fixed
 - New env vars, GCP resources, or external config added
 - Anything unfinished
+- Any context a future Claude session would need to avoid repeating work or making conflicting decisions
 
 ## What NOT to log
 
