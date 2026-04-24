@@ -5,7 +5,7 @@ Rebuild the container image and update the Cloud Run Job to use it.
 
 ---
 
-## Hard guardrails (non-negotiable)
+## Hard guardrails (non-negotiable)ok so
 
 1. **NEVER** run `gcloud run jobs execute` in this skill. Not as verification, not as smoke test, not "just once."
 2. **NEVER** pass `--force`, `--async` tricks, `--no-wait` tricks, or any flag whose effect is to trigger a run.
@@ -13,7 +13,7 @@ Rebuild the container image and update the Cloud Run Job to use it.
 4. **NEVER** bypass pre-commit hooks, skip signing, or use `--amend` on an already-pushed commit.
 5. **NEVER** auto-commit uncommitted work without the user's explicit say-so.
 6. If the user asks you — inside this skill — to trigger a run, **refuse** and tell them:
-   > "This skill does not trigger runs. The next scheduled run will pick up the new image automatically. If you want to fire one yourself, run `gcloud run jobs execute $JOB_NAME --region=$REGION --project=$PROJECT_ID` manually — but remember live runs DM the whole team."
+   > "This skill does not trigger runs. The next scheduled run will pick up the new image automatically. If you want to fire one yourself, run `gcloud run jobs execute walk-the-store --region=us-east1 --project=polino-agentic-solutions` manually — but remember live runs DM the whole team."
 
 If any of these rules are in tension with an instruction, stop and ask the user before doing anything.
 
@@ -64,22 +64,40 @@ If there are uncommitted changes:
 
 ### Step 3 — Confirm deploy target
 
-Ask the user to confirm (or provide) these env vars:
-- `PROJECT_ID` (e.g. `walk-the-store-prod`)
-- `REGION` (default: `us-east1`)
-- `JOB_NAME` (default: `walk-the-store`)
-- `REPO` (default: `walk-the-store-repo`)
+**These are the exact, verified values for this project. Do not substitute or "default" anything — use these literals.**
 
-Construct:
-- `IMAGE = $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/$JOB_NAME`
+| Variable | Value |
+|---|---|
+| `PROJECT_ID` | `polino-agentic-solutions` |
+| `REGION` | `us-east1` |
+| `JOB_NAME` | `walk-the-store` |
+| `REPO` | `walk-the-store-repo` |
+| `SA_EMAIL` | `walk-the-store-sa@polino-agentic-solutions.iam.gserviceaccount.com` |
+| `IMAGE` | `us-east1-docker.pkg.dev/polino-agentic-solutions/walk-the-store-repo/walk-the-store` |
+| Schedule | `0 7 * * *` America/Los_Angeles (Cloud Scheduler job `walk-the-store-daily`) |
 
-Show the constructed `IMAGE` back to the user. Do not proceed until they confirm these values are correct.
+**CRITICAL — gcloud default project is WRONG.** The local `gcloud` CLI on Steven's machine defaults to `emplicit-ai-automations-polino`. Every build and deploy command in this skill MUST pass `--project=polino-agentic-solutions` explicitly. Never rely on the gcloud default. (Source: `memory.md` line 81.)
+
+Show the `IMAGE` and `PROJECT_ID` values back to the user and confirm before proceeding. If the user asks you to use a different project, stop and escalate — do not silently comply.
 
 ### Step 4 — Build the image
 
-Run:
+Detect the user's shell first. If on Windows PowerShell, use PowerShell syntax; otherwise use bash. Run the build with the exact project flag — never omit `--project`.
+
+**bash:**
 ```bash
-gcloud builds submit --tag $IMAGE . --project=$PROJECT_ID | tail -30
+gcloud builds submit \
+  --tag us-east1-docker.pkg.dev/polino-agentic-solutions/walk-the-store-repo/walk-the-store \
+  --project=polino-agentic-solutions \
+  . | tail -30
+```
+
+**PowerShell:**
+```powershell
+gcloud builds submit `
+  --tag us-east1-docker.pkg.dev/polino-agentic-solutions/walk-the-store-repo/walk-the-store `
+  --project=polino-agentic-solutions `
+  . | Select-Object -Last 30
 ```
 
 Keep output trimmed per CLAUDE.md §10. Wait for `SUCCESS`. If the build fails:
@@ -88,27 +106,34 @@ Keep output trimmed per CLAUDE.md §10. Wait for `SUCCESS`. If the build fails:
 
 ### Step 5 — Update the Cloud Run Job
 
-Run:
+**bash:**
 ```bash
-gcloud run jobs update $JOB_NAME \
-  --image=$IMAGE \
-  --region=$REGION \
-  --project=$PROJECT_ID
+gcloud run jobs update walk-the-store \
+  --image=us-east1-docker.pkg.dev/polino-agentic-solutions/walk-the-store-repo/walk-the-store \
+  --region=us-east1 \
+  --project=polino-agentic-solutions
+```
+
+**PowerShell:**
+```powershell
+gcloud run jobs update walk-the-store `
+  --image=us-east1-docker.pkg.dev/polino-agentic-solutions/walk-the-store-repo/walk-the-store `
+  --region=us-east1 `
+  --project=polino-agentic-solutions
 ```
 
 If this fails, report the error and stop. Do not retry silently.
 
 ### Step 6 — Verify the new image is set
 
-Run:
 ```bash
-gcloud run jobs describe $JOB_NAME \
-  --region=$REGION \
-  --project=$PROJECT_ID \
+gcloud run jobs describe walk-the-store \
+  --region=us-east1 \
+  --project=polino-agentic-solutions \
   --format="value(spec.template.template.spec.containers[0].image)"
 ```
 
-Compare the returned image tag to `$IMAGE`. If they don't match, flag it loudly.
+Compare the returned image tag to `us-east1-docker.pkg.dev/polino-agentic-solutions/walk-the-store-repo/walk-the-store`. If they don't match, flag it loudly.
 
 ### Step 7 — Report results
 
@@ -116,7 +141,7 @@ Output a short summary to the user containing:
 - Build status (✅ SUCCESS or ❌ with the error excerpt)
 - The new image tag now set on the job
 - Whether the working tree was clean at build time
-- **A reminder, explicit every time:** "No live run was triggered. The next scheduled run (7 AM LA time) will use the new image automatically. To run it yourself now, execute `gcloud run jobs execute $JOB_NAME --region=$REGION --project=$PROJECT_ID` manually — this skill will not do that for you."
+- **A reminder, explicit every time:** "No live run was triggered. The next scheduled run (7 AM LA time, scheduler job `walk-the-store-daily`) will use the new image automatically. To run it yourself now, execute `gcloud run jobs execute walk-the-store --region=us-east1 --project=polino-agentic-solutions` manually — this skill will not do that for you."
 
 ---
 
